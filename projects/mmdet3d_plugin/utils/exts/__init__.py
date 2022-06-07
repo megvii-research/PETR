@@ -1,1 +1,0 @@
-from .optimizer_constructor import NamedOptimizerConstructor

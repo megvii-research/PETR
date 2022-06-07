@@ -6,8 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.batchnorm import _BatchNorm
-import warnings
-import torch.utils.checkpoint as cp
+
 
 VoVNet19_slim_dw_eSE = {
     'stem': [64, 64, 64],
@@ -339,27 +338,15 @@ class VoVNet(BaseModule):
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight)
 
-    # def forward(self, x):
-    #     outputs = {}
-    #     x = self.stem(x)
-    #     if "stem" in self._out_features:
-    #         outputs["stem"] = x
-    #     for name in self.stage_names:
-    #         x = getattr(self, name)(x)
-    #         if name in self._out_features:
-    #             outputs[name] = x
-
-    #     return outputs
-
     def forward(self, x):
-        outputs = []
+        outputs = {}
         x = self.stem(x)
         if "stem" in self._out_features:
-            outputs.append(x)
+            outputs["stem"] = x
         for name in self.stage_names:
             x = getattr(self, name)(x)
             if name in self._out_features:
-                outputs.append(x)
+                outputs[name] = x
 
         return outputs
 

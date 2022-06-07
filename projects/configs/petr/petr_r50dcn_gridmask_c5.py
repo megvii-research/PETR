@@ -24,17 +24,18 @@ input_modality = dict(
     use_map=False,
     use_external=False)
 model = dict(
-    type='Detr3D',
+    type='Petr3D',
     use_grid_mask=True,
     img_backbone=dict(
         type='ResNet',
         depth=50,
         num_stages=4,
         out_indices=(3,),
-        frozen_stages=1,
+        frozen_stages=-1,
         norm_cfg=dict(type='BN2d', requires_grad=False),
         norm_eval=True,
         style='caffe',
+        with_cp=True,
         dcn=dict(type='DCNv2', deform_groups=1, fallback_on_stride=False),
         stage_with_dcn=(False, False, True, True),
         pretrained = 'ckpts/resnet50_msra-5891d200.pth',
@@ -43,7 +44,7 @@ model = dict(
         type='PETRHead',
         num_classes=10,
         in_channels=2048,
-        num_query=1500,
+        num_query=900,
         LID=True,
         with_position=True,
         with_multiview=True,
@@ -56,7 +57,7 @@ model = dict(
                 return_intermediate=True,
                 num_layers=6,
                 transformerlayers=dict(
-                    type='DetrTransformerDecoderLayer',
+                    type='PETRTransformerDecoderLayer',
                     attn_cfgs=[
                         dict(
                             type='MultiheadAttention',
@@ -71,6 +72,7 @@ model = dict(
                         ],
                     feedforward_channels=2048,
                     ffn_dropout=0.1,
+                    with_cp=True,
                     operation_order=('self_attn', 'norm', 'cross_attn', 'norm',
                                      'ffn', 'norm')),
             )),
@@ -100,7 +102,6 @@ model = dict(
         out_size_factor=4,
         assigner=dict(
             type='HungarianAssigner3D',
-            # cls_cost=dict(type='ClassificationCost', weight=2.0),
             cls_cost=dict(type='FocalLossCost', weight=2.0),
             reg_cost=dict(type='BBox3DL1Cost', weight=0.25),
             iou_cost=dict(type='IoUCost', weight=0.0), # Fake cost. This is just to make it compatible with DETR head. 
@@ -153,12 +154,10 @@ ida_aug_conf = {
         "rot_lim": (0.0, 0.0),
         "H": 900,
         "W": 1600,
-        # "rand_flip": False,
         "rand_flip": True,
     }
 train_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
-    # dict(type='PhotoMetricDistortionMultiViewImage'),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),

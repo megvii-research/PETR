@@ -1,3 +1,13 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
+# Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
+
 import math
 import warnings
 from typing import Sequence
@@ -18,6 +28,7 @@ from mmcv.cnn.bricks.registry import (ATTENTION,TRANSFORMER_LAYER,
 from mmcv.utils import (ConfigDict, build_from_cfg, deprecated_api_warning,
                         to_2tuple)
 import copy
+import torch.utils.checkpoint as cp
 
 @TRANSFORMER.register_module()
 class PETRTransformer(BaseModule):
@@ -129,6 +140,121 @@ class PETRTransformer(BaseModule):
         memory = memory.reshape(n, h, w, bs, c).permute(3, 0, 4, 1, 2)
         return  out_dec, memory
 
+
+@TRANSFORMER_LAYER.register_module()
+class PETRTransformerDecoderLayer(BaseTransformerLayer):
+    """Implements decoder layer in DETR transformer.
+    Args:
+        attn_cfgs (list[`mmcv.ConfigDict`] | list[dict] | dict )):
+            Configs for self_attention or cross_attention, the order
+            should be consistent with it in `operation_order`. If it is
+            a dict, it would be expand to the number of attention in
+            `operation_order`.
+        feedforward_channels (int): The hidden dimension for FFNs.
+        ffn_dropout (float): Probability of an element to be zeroed
+            in ffn. Default 0.0.
+        operation_order (tuple[str]): The execution order of operation
+            in transformer. Such as ('self_attn', 'norm', 'ffn', 'norm').
+            Default：None
+        act_cfg (dict): The activation config for FFNs. Default: `LN`
+        norm_cfg (dict): Config dict for normalization layer.
+            Default: `LN`.
+        ffn_num_fcs (int): The number of fully-connected layers in FFNs.
+            Default：2.
+    """
+
+    def __init__(self,
+                 attn_cfgs,
+                 feedforward_channels,
+                 ffn_dropout=0.0,
+                 operation_order=None,
+                 act_cfg=dict(type='ReLU', inplace=True),
+                 norm_cfg=dict(type='LN'),
+                 ffn_num_fcs=2,
+                 with_cp=True,
+                 **kwargs):
+        super(PETRTransformerDecoderLayer, self).__init__(
+            attn_cfgs=attn_cfgs,
+            feedforward_channels=feedforward_channels,
+            ffn_dropout=ffn_dropout,
+            operation_order=operation_order,
+            act_cfg=act_cfg,
+            norm_cfg=norm_cfg,
+            ffn_num_fcs=ffn_num_fcs,
+            **kwargs)
+        assert len(operation_order) == 6
+        assert set(operation_order) == set(
+            ['self_attn', 'norm', 'cross_attn', 'ffn'])
+        self.use_checkpoint = with_cp
+    
+    def _forward(self, 
+                query,
+                key=None,
+                value=None,
+                query_pos=None,
+                key_pos=None,
+                attn_masks=None,
+                query_key_padding_mask=None,
+                key_padding_mask=None,
+                ):
+        """Forward function for `TransformerCoder`.
+        Returns:
+            Tensor: forwarded results with shape [num_query, bs, embed_dims].
+        """
+        x = super(PETRTransformerDecoderLayer, self).forward(
+                query,
+                key=key,
+                value=value,
+                query_pos=query_pos,
+                key_pos=key_pos,
+                attn_masks=attn_masks,
+                query_key_padding_mask=query_key_padding_mask,
+                key_padding_mask=key_padding_mask,
+                )
+
+        return x
+
+    def forward(self, 
+                query,
+                key=None,
+                value=None,
+                query_pos=None,
+                key_pos=None,
+                attn_masks=None,
+                query_key_padding_mask=None,
+                key_padding_mask=None,
+                **kwargs
+                ):
+        """Forward function for `TransformerCoder`.
+        Returns:
+            Tensor: forwarded results with shape [num_query, bs, embed_dims].
+        """
+
+        if self.use_checkpoint and self.training:
+            x = cp.checkpoint(
+                self._forward, 
+                query,
+                key,
+                value,
+                query_pos,
+                key_pos,
+                attn_masks,
+                query_key_padding_mask,
+                key_padding_mask,
+                )
+        else:
+            x = self._forward(
+            query,
+            key=key,
+            value=value,
+            query_pos=query_pos,
+            key_pos=key_pos,
+            attn_masks=attn_masks,
+            query_key_padding_mask=query_key_padding_mask,
+            key_padding_mask=key_padding_mask
+            )
+        
+        return x
 
 @ATTENTION.register_module()
 class PETRMultiheadAttention(BaseModule):
@@ -283,7 +409,7 @@ class PETRTransformerEncoder(TransformerLayerSequence):
     """
 
     def __init__(self, *args, post_norm_cfg=dict(type='LN'), **kwargs):
-        super(DetrTransformerEncoder3D, self).__init__(*args, **kwargs)
+        super(PETRTransformerEncoder, self).__init__(*args, **kwargs)
         if post_norm_cfg is not None:
             self.post_norm = build_norm_layer(
                 post_norm_cfg, self.embed_dims)[1] if self.pre_norm else None

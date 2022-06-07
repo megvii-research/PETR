@@ -1,25 +1,21 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
+# Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 from .transform_3d import (
     PadMultiViewImage, NormalizeMultiviewImage, 
-    PhotoMetricDistortionMultiViewImage, CropMultiViewImage,
-    RandomScaleImageMultiViewImage,
-    HorizontalRandomFlipMultiViewImage, 
-    LoadMultiViewImageFromOnce,
-    LoadPointsFromOnce,
-    NormalizeMultiviewImageRGBwBGR,
-    RandomFlipMultiview3D,
+    PhotoMetricDistortionMultiViewImage, 
     ResizeMultiview3D,
-    RandomCropMultiview3D,
     AlbuMultiview3D,
-    AutomoldMultiview3D,
     ResizeCropFlipImage,
     GlobalRotScaleTransImage
     )
-from .loading import (LoadPointsFromNori, LoadMultiViewImageFromNoris, LoadImageFromNoriMono3D, LoadPointsFromMultiSweepsNori,LoadMultiViewImageFromNori)
 
 __all__ = [
-    'PadMultiViewImage', 'NormalizeMultiviewImage', 
-    'PhotoMetricDistortionMultiViewImage', 'CropMultiViewImage', 'NormalizeMultiviewImageRGBwBGR','LoadMultiViewImageFromNori',
-    'RandomScaleImageMultiViewImage', 'HorizontalRandomFlipMultiViewImage', 'LoadMultiViewImageFromOnce', 'LoadPointsFromOnce',
-    'LoadPointsFromNori', 'LoadMultiViewImageFromNoris', 'LoadImageFromNoriMono3D', 'LoadPointsFromMultiSweepsNori','RandomFlipMultiview3D','ResizeMultiview3D',
-    'RandomCropMultiview3D','AlbuMultiview3D','AutomoldMultiview3D','ResizeCropFlipImage','GlobalRotScaleTransImage'
-]
+    'PadMultiViewImage', 'NormalizeMultiviewImage', 'PhotoMetricDistortionMultiViewImage', 
+    'ResizeMultiview3D','AlbuMultiview3D','ResizeCropFlipImage','GlobalRotScaleTransImage']

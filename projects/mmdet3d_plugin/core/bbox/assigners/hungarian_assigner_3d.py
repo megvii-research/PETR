@@ -1,3 +1,12 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection (https://github.com/open-mmlab/mmdetection)
+# Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 import torch
 
 from mmdet.core.bbox.builder import BBOX_ASSIGNERS

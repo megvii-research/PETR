@@ -1,4 +1,13 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
 # Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
+
 from __future__ import division
 
 import argparse
@@ -20,7 +29,7 @@ from mmdet3d.models import build_model
 from mmdet3d.utils import collect_env, get_root_logger
 from mmdet.apis import set_random_seed
 from mmseg import __version__ as mmseg_version
-from projects.mmdet3d_plugin import build_distiller
+from mmdet.utils import get_device
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
@@ -169,8 +178,7 @@ def main():
     # specify logger name, if we still use 'mmdet', the output info will be
     # filtered and won't be saved in the log_file
     # TODO: ugly workaround to judge whether we are training det or seg model
-    distiller_cfg = cfg.get('distiller',None)
-    if distiller_cfg is None and cfg.model.type in ['EncoderDecoder3D']:
+    if cfg.model.type in ['EncoderDecoder3D']:
         logger_name = 'mmseg'
     else:
         logger_name = 'mmdet'
@@ -188,7 +196,7 @@ def main():
                 dash_line)
     meta['env_info'] = env_info
     meta['config'] = cfg.pretty_text
-
+    cfg.device = get_device()
     # log some basic info
     logger.info(f'Distributed training: {distributed}')
     logger.info(f'Config:\n{cfg.pretty_text}')
@@ -202,30 +210,11 @@ def main():
     meta['seed'] = args.seed
     meta['exp_name'] = osp.basename(args.config)
 
-    
-    if distiller_cfg is None:
-        model = build_model(
-            cfg.model,
-            train_cfg=cfg.get('train_cfg'),
-            test_cfg=cfg.get('test_cfg'))
-        if "tea_model" in cfg.model:
-            model.tea_model._is_init = True
-    else:
-        teacher_cfg = Config.fromfile(cfg.teacher_cfg)
-        student_cfg = Config.fromfile(cfg.student_cfg)
-        
-        model = build_distiller(cfg.distiller,teacher_cfg,student_cfg,
-        train_cfg=student_cfg.get('train_cfg'), 
-        test_cfg=student_cfg.get('test_cfg'))
-        cfg.model=student_cfg.get('model')
-        model.teacher._is_init = True
-        if cfg.distiller.student_pretrained is not None:
-            model.student.img_backbone._is_init = True
-            model.student.img_neck._is_init = True
-
-    # print("hello", model.tea_model.img_neck.lateral_convs[0].conv.weight)
+    model = build_model(
+        cfg.model,
+        train_cfg=cfg.get('train_cfg'),
+        test_cfg=cfg.get('test_cfg'))
     model.init_weights()
-    # print("hello world", model.tea_model.img_neck.lateral_convs[0].conv.weight)
 
     logger.info(f'Model:\n{model}')
     datasets = [build_dataset(cfg.data.train)]
@@ -266,3 +255,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

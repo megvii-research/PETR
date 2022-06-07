@@ -1,4 +1,9 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from mmdetection (https://github.com/open-mmlab/mmdetection)
 # Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import ConvModule

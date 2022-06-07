@@ -1,13 +1,8 @@
 import torch
-import mmcv
-import numpy as np
-from mmcv.parallel import DataContainer as DC
-from os import path as osp
+
 from mmcv.runner import force_fp32, auto_fp16
 from mmdet.models import DETECTORS
 from mmdet3d.core import bbox3d2result
-from mmdet3d.core import (CameraInstance3DBoxes,LiDARInstance3DBoxes, bbox3d2result,
-                          show_multi_modality_result)
 from mmdet3d.models.detectors.mvx_two_stage import MVXTwoStageDetector
 from projects.mmdet3d_plugin.models.utils.grid_mask import GridMask
 
@@ -32,7 +27,8 @@ class Detr3D(MVXTwoStageDetector):
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super(Detr3D, self).__init__(pts_voxel_layer, pts_voxel_encoder,
+        super(Detr3D,
+              self).__init__(pts_voxel_layer, pts_voxel_encoder,
                              pts_middle_encoder, pts_fusion_layer,
                              img_backbone, pts_backbone, img_neck, pts_neck,
                              pts_bbox_head, img_roi_head, img_rpn_head,
@@ -42,22 +38,18 @@ class Detr3D(MVXTwoStageDetector):
 
     def extract_img_feat(self, img, img_metas):
         """Extract features of images."""
-        # print(img[0].size())
-        if isinstance(img, list):
-            img = torch.stack(img, dim=0)
-
         B = img.size(0)
         if img is not None:
             input_shape = img.shape[-2:]
             # update real input shape of each single img
             for img_meta in img_metas:
                 img_meta.update(input_shape=input_shape)
-            if img.dim() == 5:
-                if img.size(0) == 1 and img.size(1) != 1:
-                    img.squeeze_()
-                else:
-                    B, N, C, H, W = img.size()
-                    img = img.view(B * N, C, H, W)
+
+            if img.dim() == 5 and img.size(0) == 1:
+                img.squeeze_()
+            elif img.dim() == 5 and img.size(0) > 1:
+                B, N, C, H, W = img.size()
+                img = img.view(B * N, C, H, W)
             if self.use_grid_mask:
                 img = self.grid_mask(img)
             img_feats = self.img_backbone(img)
@@ -101,7 +93,6 @@ class Detr3D(MVXTwoStageDetector):
         outs = self.pts_bbox_head(pts_feats, img_metas)
         loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs]
         losses = self.pts_bbox_head.loss(*loss_inputs)
-
         return losses
 
     @force_fp32(apply_to=('img', 'points'))
@@ -155,36 +146,13 @@ class Detr3D(MVXTwoStageDetector):
         Returns:
             dict: Losses of different branches.
         """
-
         img_feats = self.extract_feat(img=img, img_metas=img_metas)
-
         losses = dict()
         losses_pts = self.forward_pts_train(img_feats, gt_bboxes_3d,
                                             gt_labels_3d, img_metas,
                                             gt_bboxes_ignore)
         losses.update(losses_pts)
         return losses
-    
-    
-    def img_show(self, imgs):
-        import os
-        import cv2
-        import random
-        import numpy as np
-        mean= np.array([103.530, 116.280, 123.675])
-        mean = mean.reshape(1,1,3)
-        if not os.path.exists("./imgs"):
-            os.makedirs("./imgs")
-        name = str(random.randint(1,20))
-        for i in range(imgs.size(1)):
-            img = imgs[0][i]
-            img = img.permute(1, 2, 0).detach().cpu().numpy()
-            img = img + mean
-            # print(img)
-
-            cv2.imwrite("./imgs/"+name+"_"+str(i)+".png", img.astype(np.uint8))
-            print(img.shape)
-
     
     def forward_test(self, img_metas, img=None, **kwargs):
         for var, name in [(img_metas, 'img_metas')]:
@@ -193,6 +161,11 @@ class Detr3D(MVXTwoStageDetector):
                     name, type(var)))
         img = [img] if img is None else img
         return self.simple_test(img_metas[0], img[0], **kwargs)
+        # if num_augs == 1:
+        #     img = [img] if img is None else img
+        #     return self.simple_test(None, img_metas[0], img[0], **kwargs)
+        # else:
+        #     return self.aug_test(None, img_metas, img, **kwargs)
 
     def simple_test_pts(self, x, img_metas, rescale=False):
         """Test function of point cloud branch."""
@@ -241,64 +214,3 @@ class Detr3D(MVXTwoStageDetector):
         for result_dict, pts_bbox in zip(bbox_list, bbox_pts):
             result_dict['pts_bbox'] = pts_bbox
         return bbox_list
-    
-    
-    def show_results(self, data, result, out_dir, score_thr=0.1):
-        """Results visualization.
-
-        Args:
-            data (list[dict]): Input images and the information of the sample.
-            result (list[dict]): Prediction results.
-            out_dir (str): Output directory of visualization result.
-        """
-
-        for batch_id in range(len(result)):
-            if isinstance(data['img_metas'][0], DC):
-                img_filename = data['img_metas'][0]._data[0][batch_id][
-                    'filename']
-                cam2img = data['img_metas'][0]._data[0][batch_id]['lidar2img']
-            elif mmcv.is_list_of(data['img_metas'][0], dict):
-                img_filename = data['img_metas'][0][batch_id]['filename']
-                cam2img = data['img_metas'][0][batch_id]['lidar2img']
-            else:
-                ValueError(
-                    f"Unsupported data type {type(data['img_metas'][0])} "
-                    f'for visualization!')
-
-            for i in range(len(img_filename)):
-                if "once" in img_filename[i]:
-                    img_path = img_filename[i].replace("/home/sunjianjian/workspace/temp/once_benchmark/data/","/data/Dataset/")
-                    img = mmcv.imread(img_path)
-                    
-                    file_name =  img_path.split("/")[-2] + osp.split(img_path)[-1].split('.')[0]
-                else:
-                    img_path = img_filename[i]
-                    img = mmcv.imread(img_path)
-                    file_name =  osp.split(img_path)[-1].split('.')[0]
-                print(file_name)
-                assert out_dir is not None, 'Expect out_dir, got none.'
-
-                pred_bboxes = result[batch_id]['pts_bbox']['boxes_3d']
-                pred_scores = result[batch_id]['pts_bbox']['scores_3d']
-                pred_labels = result[batch_id]['pts_bbox']['labels_3d']
-
-                mask = pred_scores> score_thr
-
-                pred_bboxes = pred_bboxes[mask]
-                pred_scores = pred_scores[mask]
-                pred_labels = pred_labels[mask]
-
-                assert isinstance(pred_bboxes, LiDARInstance3DBoxes), \
-                    f'unsupported predicted bbox type {type(pred_bboxes)}'
-                
-
-                show_multi_modality_result(
-                    img,
-                    None,
-                    pred_bboxes,
-                    cam2img[i],
-                    out_dir,
-                    file_name,
-                    'lidar',
-                    show=False)
-

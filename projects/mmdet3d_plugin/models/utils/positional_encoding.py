@@ -1,11 +1,15 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from mmdetection (https://github.com/open-mmlab/mmdetection)
 # Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 import math
 
 import torch
 import torch.nn as nn
 from mmcv.cnn.bricks.transformer import POSITIONAL_ENCODING
 from mmcv.runner import BaseModule
-
 
 @POSITIONAL_ENCODING.register_module()
 class SinePositionalEncoding3D(BaseModule):

@@ -1,3 +1,12 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
+# Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 import numpy as np
 from numpy import random
 import mmcv
@@ -5,201 +14,16 @@ from mmdet.datasets.builder import PIPELINES
 from mmdet3d.core.points import BasePoints, get_points_type
 import copy
 import inspect
-from .Automold import *
 from operator import methodcaller
 import torch
+import cv2
 try:
     import albumentations
     from albumentations import Compose
 except ImportError:
     albumentations = None
     Compose = None
-
-@PIPELINES.register_module()
-class LoadMultiViewImageFromOnce(object):
-    """
-    Load multi channel images from a list of separate channel files.
-
-    Expects results['img_filename'] to be a list of filenames.
-
-    Args:
-        to_float32 (bool): Whether to convert the img to float32.
-            Defaults to False.
-        color_type (str): Color type of the file. Defaults to 'unchanged'.
-    """
-
-    def __init__(self, to_float32=False, color_type='unchanged'):
-        self.to_float32 = to_float32
-        self.color_type = color_type
-
-    def __call__(self, results):
-        """Call function to load multi-view image from files.
-
-        Args:
-            results (dict): Result dict containing multi-view image filenames.
-
-        Returns:
-            dict: The result dict containing the multi-view image data. \
-                Added keys and values are described below.
-
-                - filename (str): Multi-view image filenames.
-                - img (np.ndarray): Multi-view image arrays.
-                - img_shape (tuple[int]): Shape of multi-view image arrays.
-                - ori_shape (tuple[int]): Shape of original image arrays.
-                - pad_shape (tuple[int]): Shape of padded image arrays.
-                - scale_factor (float): Scale factor.
-                - img_norm_cfg (dict): Normalization configuration of images.
-        """
-        filename = results['img_filename']
-        # img is of shape (h, w, c, num_views)
-        img = results['img']
-        if self.to_float32:
-            img = img.astype(np.float32)
-        results['filename'] = filename
-        # unravel to list, see `DefaultFormatBundle` in formating.py
-        # which will transpose each image separately and then stack into array
-        results['img'] = [img[..., i] for i in range(img.shape[-1])]
-        results['img_shape'] = img.shape
-        results['ori_shape'] = img.shape
-        # Set initial values for default meta_keys
-        results['pad_shape'] = img.shape
-        results['scale_factor'] = 1.0
-        num_channels = 1 if len(img.shape) < 3 else img.shape[2]
-        results['img_norm_cfg'] = dict(
-            mean=np.zeros(num_channels, dtype=np.float32),
-            std=np.ones(num_channels, dtype=np.float32),
-            to_rgb=False)
-        return results
-
-    def __repr__(self):
-        """str: Return a string that describes the module."""
-        repr_str = self.__class__.__name__
-        repr_str += f'(to_float32={self.to_float32}, '
-        repr_str += f"color_type='{self.color_type}')"
-        return repr_str
-
-
-@PIPELINES.register_module()
-class LoadPointsFromOnce(object):
-    """Load Points From File.
-
-    Load sunrgbd and scannet points from file.
-
-    Args:
-        coord_type (str): The type of coordinates of points cloud.
-            Available options includes:
-            - 'LIDAR': Points in LiDAR coordinates.
-            - 'DEPTH': Points in depth coordinates, usually for indoor dataset.
-            - 'CAMERA': Points in camera coordinates.
-        load_dim (int): The dimension of the loaded points.
-            Defaults to 6.
-        use_dim (list[int]): Which dimensions of the points to be used.
-            Defaults to [0, 1, 2]. For KITTI dataset, set use_dim=4
-            or use_dim=[0, 1, 2, 3] to use the intensity dimension.
-        shift_height (bool): Whether to use shifted height. Defaults to False.
-        use_color (bool): Whether to use color features. Defaults to False.
-        file_client_args (dict): Config dict of file clients, refer to
-            https://github.com/open-mmlab/mmcv/blob/master/mmcv/fileio/file_client.py
-            for more details. Defaults to dict(backend='disk').
-    """
-
-    def __init__(self,
-                 coord_type,
-                 load_dim=6,
-                 use_dim=[0, 1, 2],
-                 shift_height=False,
-                 use_color=False,
-                 file_client_args=dict(backend='disk')):
-        self.shift_height = shift_height
-        self.use_color = use_color
-        if isinstance(use_dim, int):
-            use_dim = list(range(use_dim))
-        assert max(use_dim) < load_dim, \
-            f'Expect all used dimensions < {load_dim}, got {use_dim}'
-        assert coord_type in ['CAMERA', 'LIDAR', 'DEPTH']
-
-        self.coord_type = coord_type
-        self.load_dim = load_dim
-        self.use_dim = use_dim
-        self.file_client_args = file_client_args.copy()
-        self.file_client = None
-
-    def _load_points(self, pts_filename):
-        """Private function to load point clouds data.
-
-        Args:
-            pts_filename (str): Filename of point clouds data.
-
-        Returns:
-            np.ndarray: An array containing point clouds data.
-        """
-        if self.file_client is None:
-            self.file_client = mmcv.FileClient(**self.file_client_args)
-        try:
-            pts_bytes = self.file_client.get(pts_filename)
-            points = np.frombuffer(pts_bytes, dtype=np.float32)
-        except ConnectionError:
-            mmcv.check_file_exist(pts_filename)
-            if pts_filename.endswith('.npy'):
-                points = np.load(pts_filename)
-            else:
-                points = np.fromfile(pts_filename, dtype=np.float32)
-
-        return points
-
-    def __call__(self, results):
-        """Call function to load points data from file.
-
-        Args:
-            results (dict): Result dict containing point clouds data.
-
-        Returns:
-            dict: The result dict containing the point clouds data. \
-                Added key and value are described below.
-
-                - points (:obj:`BasePoints`): Point clouds data.
-        """
-        # pts_filename = results['pts_filename']
-        points = results['points']
-        points = points.reshape(-1, self.load_dim)
-        points = points[:, self.use_dim]
-        attribute_dims = None
-
-        if self.shift_height:
-            floor_height = np.percentile(points[:, 2], 0.99)
-            height = points[:, 2] - floor_height
-            points = np.concatenate(
-                [points[:, :3],
-                 np.expand_dims(height, 1), points[:, 3:]], 1)
-            attribute_dims = dict(height=3)
-
-        if self.use_color:
-            assert len(self.use_dim) >= 6
-            if attribute_dims is None:
-                attribute_dims = dict()
-            attribute_dims.update(
-                dict(color=[
-                    points.shape[1] - 3,
-                    points.shape[1] - 2,
-                    points.shape[1] - 1,
-                ]))
-
-        points_class = get_points_type(self.coord_type)
-        points = points_class(
-            points, points_dim=points.shape[-1], attribute_dims=attribute_dims)
-        results['points'] = points
-
-        return results
-
-    def __repr__(self):
-        """str: Return a string that describes the module."""
-        repr_str = self.__class__.__name__ + '('
-        repr_str += f'shift_height={self.shift_height}, '
-        repr_str += f'use_color={self.use_color}, '
-        repr_str += f'file_client_args={self.file_client_args}, '
-        repr_str += f'load_dim={self.load_dim}, '
-        repr_str += f'use_dim={self.use_dim})'
-        return repr_str
+from PIL import Image
 
 @PIPELINES.register_module()
 class PadMultiViewImage(object):
@@ -287,92 +111,6 @@ class NormalizeMultiviewImage(object):
         repr_str = self.__class__.__name__
         repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
         return repr_str
-
-@PIPELINES.register_module()
-class RandomFlipMultiview3D:
-    """Normalize the image.
-    Added key is "img_norm_cfg".
-    Args:
-        mean (sequence): Mean values of 3 channels.
-        std (sequence): Std values of 3 channels.
-        to_rgb (bool): Whether to convert the image from BGR to RGB,
-            default is true.
-    """
-
-    def __init__(self, flip_ratio=None, direction='horizontal'):
-        if isinstance(flip_ratio, list):
-            assert mmcv.is_list_of(flip_ratio, float)
-            assert 0 <= sum(flip_ratio) <= 1
-        elif isinstance(flip_ratio, float):
-            assert 0 <= flip_ratio <= 1
-        elif flip_ratio is None:
-            pass
-        else:
-            raise ValueError('flip_ratios must be None, float, '
-                             'or list of float')
-        self.flip_ratio = flip_ratio
-
-        valid_directions = ['horizontal', 'vertical', 'diagonal']
-        if isinstance(direction, str):
-            assert direction in valid_directions
-        elif isinstance(direction, list):
-            assert mmcv.is_list_of(direction, str)
-            assert set(direction).issubset(set(valid_directions))
-        else:
-            raise ValueError('direction must be either str or list of str')
-        self.direction = direction
-
-        if isinstance(flip_ratio, list):
-            assert len(self.flip_ratio) == len(self.direction)
-
-    def __call__(self, results):
-        """Call function to normalize images.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Normalized results, 'img_norm_cfg' key is added into
-                result dict.
-        """
-        if 'flip' not in results:
-            if isinstance(self.direction, list):
-                # None means non-flip
-                direction_list = self.direction + [None]
-            else:
-                # None means non-flip
-                direction_list = [self.direction, None]
-
-            if isinstance(self.flip_ratio, list):
-                non_flip_ratio = 1 - sum(self.flip_ratio)
-                flip_ratio_list = self.flip_ratio + [non_flip_ratio]
-            else:
-                non_flip_ratio = 1 - self.flip_ratio
-                # exclude non-flip
-                single_ratio = self.flip_ratio / (len(direction_list) - 1)
-                flip_ratio_list = [single_ratio] * (len(direction_list) -
-                                                    1) + [non_flip_ratio]
-
-            cur_dir = np.random.choice(direction_list, p=flip_ratio_list)
-
-            results['flip'] = cur_dir is not None
-
-        if 'flip_direction' not in results:
-            results['flip_direction'] = cur_dir
-
-        if results['flip_direction'] is not None:
-            w = results['img'][0].shape[1]
-            results['img'] = [mmcv.imflip(img, direction=results['flip_direction']) for img in results['img']]
-
-            for i, intrinsic in enumerate(results['intrinsics']):
-                results['intrinsics'][i][0, 0] = - intrinsic[0, 0] 
-                results['intrinsics'][i][0, 2] = w - intrinsic[0, 2] 
-
-            results['lidar2img'] = [results['intrinsics'][i] @ results['extrinsics'][i].T for i in range(len(results['extrinsics']))]
-
-        return results
-
-    def __repr__(self):
-        return self.__class__.__name__ + f'(flip_ratio={self.flip_ratio})'
-
 
 @PIPELINES.register_module()
 class ResizeMultiview3D:
@@ -645,26 +383,19 @@ class ResizeCropFlipImage(object):
         new_imgs = []
         resize, resize_dims, crop, flip, rotate = self._sample_augmentation()
         for i in range(N):
-            post_rot = torch.eye(2)
-            post_tran = torch.zeros(2)
-            img = imgs[i]
-
+            img = Image.fromarray(np.uint8(imgs[i]))
             # augmentation (resize, crop, horizontal flip, rotate)
-            # resize, resize_dims, crop, flip, rotate = self._sample_augmentation()
-            img, post_rot2, post_tran2 = self._img_transform(
+            # resize, resize_dims, crop, flip, rotate = self._sample_augmentation()  ###different view use different aug (BEV Det)
+            img, ida_mat = self._img_transform(
                 img,
-                post_rot,
-                post_tran,
                 resize=resize,
                 resize_dims=resize_dims,
                 crop=crop,
                 flip=flip,
                 rotate=rotate,
             )
-
-            new_imgs.append(img)
-            results['intrinsics'][i][:2, :3] = post_rot2 @ results['intrinsics'][i][:2, :3]
-            results['intrinsics'][i][:2, 2] = post_tran2 + results['intrinsics'][i][:2, 2]
+            new_imgs.append(np.array(img).astype(np.float32))
+            results['intrinsics'][i][:3, :3] = ida_mat @ results['intrinsics'][i][:3, :3]
 
         results["img"] = new_imgs
         results['lidar2img'] = [results['intrinsics'][i] @ results['extrinsics'][i].T for i in range(len(results['extrinsics']))]
@@ -680,31 +411,33 @@ class ResizeCropFlipImage(object):
             ]
         )
 
-    def _img_transform(self, img, post_rot, post_tran, resize, resize_dims, crop, flip, rotate):
+    def _img_transform(self, img, resize, resize_dims, crop, flip, rotate):
+        ida_rot = torch.eye(2)
+        ida_tran = torch.zeros(2)
         # adjust image
-        img = cv2.resize(img, resize_dims)
-        img = img[crop[1] : crop[3], crop[0] : crop[2]]
-        (h, w) = img.shape[:2]
-        center = (w / 2, h / 2)
+        img = img.resize(resize_dims)
+        img = img.crop(crop)
         if flip:
-            img = cv2.flip(img, 1)
-        M = cv2.getRotationMatrix2D(center, rotate, scale=1.0)
-        img = cv2.warpAffine(img, M, (w, h))
+            img = img.transpose(method=Image.FLIP_LEFT_RIGHT)
+        img = img.rotate(rotate)
+
         # post-homography transformation
-        post_rot *= resize
-        post_tran -= torch.Tensor(crop[:2])
+        ida_rot *= resize
+        ida_tran -= torch.Tensor(crop[:2])
         if flip:
             A = torch.Tensor([[-1, 0], [0, 1]])
             b = torch.Tensor([crop[2] - crop[0], 0])
-            post_rot = A.matmul(post_rot)
-            post_tran = A.matmul(post_tran) + b
+            ida_rot = A.matmul(ida_rot)
+            ida_tran = A.matmul(ida_tran) + b
         A = self._get_rot(rotate / 180 * np.pi)
         b = torch.Tensor([crop[2] - crop[0], crop[3] - crop[1]]) / 2
         b = A.matmul(-b) + b
-        post_rot = A.matmul(post_rot)
-        post_tran = A.matmul(post_tran) + b
-
-        return img, post_rot, post_tran
+        ida_rot = A.matmul(ida_rot)
+        ida_tran = A.matmul(ida_tran) + b
+        ida_mat = torch.eye(3)
+        ida_mat[:2, :2] = ida_rot
+        ida_mat[:2, 2] = ida_tran
+        return img, ida_mat
 
     def _sample_augmentation(self):
         H, W = self.data_aug_conf["H"], self.data_aug_conf["W"]
@@ -770,7 +503,7 @@ class GlobalRotScaleTransImage(object):
             rot_angle *= -1
         results["gt_bboxes_3d"].rotate(
             np.array(rot_angle)
-        )  # mmdet LiDARInstance3DBoxes存的角度方向是反的(rotate函数实现的是绕着z轴由y向x转)
+        )  
 
         # random scale
         scale_ratio = np.random.uniform(*self.scale_ratio_range)
@@ -813,239 +546,6 @@ class GlobalRotScaleTransImage(object):
             # results["extrinsics"][view] = (torch.tensor(results["extrinsics"][view]).float() @ rot_mat_inv).numpy()
 
         return
-
-
-
-@PIPELINES.register_module()
-class RandomCropMultiview3D:
-    """Random crop the image & bboxes & masks.
-    The absolute `crop_size` is sampled based on `crop_type` and `image_size`,
-    then the cropped results are generated.
-    Args:
-        crop_size (tuple): The relative ratio or absolute pixels of
-            height and width.
-        crop_type (str, optional): one of "relative_range", "relative",
-            "absolute", "absolute_range". "relative" randomly crops
-            (h * crop_size[0], w * crop_size[1]) part from an input of size
-            (h, w). "relative_range" uniformly samples relative crop size from
-            range [crop_size[0], 1] and [crop_size[1], 1] for height and width
-            respectively. "absolute" crops from an input with absolute size
-            (crop_size[0], crop_size[1]). "absolute_range" uniformly samples
-            crop_h in range [crop_size[0], min(h, crop_size[1])] and crop_w
-            in range [crop_size[0], min(w, crop_size[1])]. Default "absolute".
-        allow_negative_crop (bool, optional): Whether to allow a crop that does
-            not contain any bbox area. Default False.
-        recompute_bbox (bool, optional): Whether to re-compute the boxes based
-            on cropped instance masks. Default False.
-        bbox_clip_border (bool, optional): Whether clip the objects outside
-            the border of the image. Defaults to True.
-    Note:
-        - If the image is smaller than the absolute crop size, return the
-            original image.
-        - The keys for bboxes, labels and masks must be aligned. That is,
-          `gt_bboxes` corresponds to `gt_labels` and `gt_masks`, and
-          `gt_bboxes_ignore` corresponds to `gt_labels_ignore` and
-          `gt_masks_ignore`.
-        - If the crop does not contain any gt-bbox region and
-          `allow_negative_crop` is set to False, skip this image.
-    """
-
-    def __init__(self,
-                 crop_size,
-                 crop_type='absolute',
-                 allow_negative_crop=False,
-                 recompute_bbox=False,
-                 bbox_clip_border=True):
-        if crop_type not in [
-                'relative_range', 'relative', 'absolute', 'absolute_range'
-        ]:
-            raise ValueError(f'Invalid crop_type {crop_type}.')
-        if crop_type in ['absolute', 'absolute_range']:
-            assert crop_size[0] > 0 and crop_size[1] > 0
-            assert isinstance(crop_size[0], int) and isinstance(
-                crop_size[1], int)
-        else:
-            assert 0 < crop_size[0] <= 1 and 0 < crop_size[1] <= 1
-        self.crop_size = crop_size
-        self.crop_type = crop_type
-        self.allow_negative_crop = allow_negative_crop
-        self.bbox_clip_border = bbox_clip_border
-        self.recompute_bbox = recompute_bbox
-        # The key correspondence from bboxes to labels and masks.
-        self.bbox2label = {
-            'gt_bboxes': 'gt_labels',
-            'gt_bboxes_ignore': 'gt_labels_ignore'
-        }
-        self.bbox2mask = {
-            'gt_bboxes': 'gt_masks',
-            'gt_bboxes_ignore': 'gt_masks_ignore'
-        }
-
-    def _crop_data(self, results, crop_size, allow_negative_crop):
-        """Function to randomly crop images, bounding boxes, masks, semantic
-        segmentation maps.
-        Args:
-            results (dict): Result dict from loading pipeline.
-            crop_size (tuple): Expected absolute size after cropping, (h, w).
-            allow_negative_crop (bool): Whether to allow a crop that does not
-                contain any bbox area. Default to False.
-        Returns:
-            dict: Randomly cropped results, 'img_shape' key in result dict is
-                updated according to crop size.
-        """
-        assert crop_size[0] > 0 and crop_size[1] > 0
-        for key in results.get('img_fields', ['img']):
-            img = results[key]
-            margin_h = max(img.shape[0] - crop_size[0], 0)
-            margin_w = max(img.shape[1] - crop_size[1], 0)
-            offset_h = np.random.randint(0, margin_h + 1)
-            offset_w = np.random.randint(0, margin_w + 1)
-            crop_y1, crop_y2 = offset_h, offset_h + crop_size[0]
-            crop_x1, crop_x2 = offset_w, offset_w + crop_size[1]
-
-            # crop the image
-            img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...]
-            img_shape = img.shape
-            results[key] = img
-        results['img_shape'] = img_shape
-
-        # crop bboxes accordingly and clip to the image boundary
-        for key in results.get('bbox_fields', []):
-            # e.g. gt_bboxes and gt_bboxes_ignore
-            bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h],
-                                   dtype=np.float32)
-            bboxes = results[key] - bbox_offset
-            if self.bbox_clip_border:
-                bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
-                bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
-            valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (
-                bboxes[:, 3] > bboxes[:, 1])
-            # If the crop does not contain any gt-bbox area and
-            # allow_negative_crop is False, skip this image.
-            if (key == 'gt_bboxes' and not valid_inds.any()
-                    and not allow_negative_crop):
-                return None
-            results[key] = bboxes[valid_inds, :]
-            # label fields. e.g. gt_labels and gt_labels_ignore
-            label_key = self.bbox2label.get(key)
-            if label_key in results:
-                results[label_key] = results[label_key][valid_inds]
-
-            # mask fields, e.g. gt_masks and gt_masks_ignore
-            mask_key = self.bbox2mask.get(key)
-            if mask_key in results:
-                results[mask_key] = results[mask_key][
-                    valid_inds.nonzero()[0]].crop(
-                        np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]))
-                if self.recompute_bbox:
-                    results[key] = results[mask_key].get_bboxes()
-
-        # crop semantic seg
-        
-
-        return results
-
-    def _get_crop_size(self, image_size):
-        """Randomly generates the absolute crop size based on `crop_type` and
-        `image_size`.
-        Args:
-            image_size (tuple): (h, w).
-        Returns:
-            crop_size (tuple): (crop_h, crop_w) in absolute pixels.
-        """
-        h, w = image_size
-        if self.crop_type == 'absolute':
-            return (min(self.crop_size[0], h), min(self.crop_size[1], w))
-        elif self.crop_type == 'absolute_range':
-            assert self.crop_size[0] <= self.crop_size[1]
-            crop_h = np.random.randint(
-                min(h, self.crop_size[0]),
-                min(h, self.crop_size[1]) + 1)
-            crop_w = np.random.randint(
-                min(w, self.crop_size[0]),
-                min(w, self.crop_size[1]) + 1)
-            return crop_h, crop_w
-        elif self.crop_type == 'relative':
-            crop_h, crop_w = self.crop_size
-            return int(h * crop_h + 0.5), int(w * crop_w + 0.5)
-        elif self.crop_type == 'relative_range':
-            crop_size = np.asarray(self.crop_size, dtype=np.float32)
-            crop_h, crop_w = crop_size + np.random.rand(2) * (1 - crop_size)
-            return int(h * crop_h + 0.5), int(w * crop_w + 0.5)
-
-    def __call__(self, results):
-        """Call function to randomly crop images, bounding boxes, masks,
-        semantic segmentation maps.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Randomly cropped results, 'img_shape' key in result dict is
-                updated according to crop size.
-        """
-        image_size = results['img'][0].shape[:2]
-        crop_size = self._get_crop_size(image_size)
-        results = self._crop_data(results, crop_size, self.allow_negative_crop)
-        return results
-
-    def __repr__(self):
-        repr_str = self.__class__.__name__
-        repr_str += f'(crop_size={self.crop_size}, '
-        repr_str += f'crop_type={self.crop_type}, '
-        repr_str += f'allow_negative_crop={self.allow_negative_crop}, '
-        repr_str += f'bbox_clip_border={self.bbox_clip_border})'
-        return repr_str
-
-
-@PIPELINES.register_module()
-class NormalizeMultiviewImageRGBwBGR(object):
-    """Normalize the image.
-    Added key is "img_norm_cfg".
-    Args:
-        mean (sequence): Mean values of 3 channels.
-        std (sequence): Std values of 3 channels.
-        to_rgb (bool): Whether to convert the image from BGR to RGB,
-            default is true.
-    """
-
-    def __init__(self, mean, std, to_rgb=True, bgr_std=None):
-        self.mean = np.array(mean, dtype=np.float32)
-        self.std = np.array(std, dtype=np.float32)
-        self.to_rgb = to_rgb
-
-        self.bgr_mean = np.array([103.530, 116.280, 123.675], dtype=np.float32)
-        if bgr_std is not None:
-            self.bgr_std = np.array(bgr_std, dtype=np.float32)
-        else:
-            self.bgr_std = np.array([57.375, 57.12, 58.395], dtype=np.float32)
-        # self.bgr_std = np.array([1.0, 1.0, 1.0], dtype=np.float32)
-        self.bgr_to_rgb = False
-
-    def __call__(self, results):
-        """Call function to normalize images.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Normalized results, 'img_norm_cfg' key is added into
-                result dict.
-        """
-        rgb_img = [mmcv.imnormalize(
-            img, self.mean, self.std, self.to_rgb) for img in results['img']]
-        
-        bgr_img = [mmcv.imnormalize(
-            img, self.bgr_mean, self.bgr_std, self.bgr_to_rgb) for img in results['img']]
-        
-        rgb_img.extend(bgr_img)
-        results['img'] = rgb_img
-
-        results['img_norm_cfg'] = dict(
-            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
-        return results
-
-    def __repr__(self):
-        repr_str = self.__class__.__name__
-        repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
-        return repr_str
-
 
 @PIPELINES.register_module()
 class AlbuMultiview3D:
@@ -1181,44 +681,6 @@ class AlbuMultiview3D:
         repr_str = self.__class__.__name__ + f'(transforms={self.transforms})'
         return repr_str
 
-
-@PIPELINES.register_module()
-class AutomoldMultiview3D:
-    """Normalize the image.
-    Added key is "img_norm_cfg".
-    Args:
-        mean (sequence): Mean values of 3 channels.
-        std (sequence): Std values of 3 channels.
-        to_rgb (bool): Whether to convert the image from BGR to RGB,
-            default is true.
-    """
-
-    def __init__(self, transforms):
-        self.transforms = transforms
-
-    def __call__(self, results):
-        """Call function to normalize images.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Normalized results, 'img_norm_cfg' key is added into
-                result dict.
-        """
-        imgs = results["img"]
-        for transform in self.transforms:
-            obj_type = transform.pop('type')
-            prob = transform.pop('p')
-            if np.random.uniform() < prob:
-                obj_cls = globals()[obj_type]
-                imgs = obj_cls(imgs, **transform)
-        results["img"] = imgs
-
-        return results
-
-    def __repr__(self):
-        repr_str = self.__class__.__name__ + f'(transforms={self.transforms})'
-        return repr_str
-
 @PIPELINES.register_module()
 class PhotoMetricDistortionMultiViewImage:
     """Apply photometric distortion to image sequentially, every transformation
@@ -1317,117 +779,4 @@ class PhotoMetricDistortionMultiViewImage:
         repr_str += f'{(self.saturation_lower, self.saturation_upper)},\n'
         repr_str += f'hue_delta={self.hue_delta})'
         return repr_str
-
-
-@PIPELINES.register_module()
-class CropMultiViewImage(object):
-    """Crop the image
-    Args:
-        size (tuple, optional): Fixed padding size.
-    """
-
-    def __init__(self, size=None):
-        self.size = size
-
-    def __call__(self, results):
-        """Call function to pad images, masks, semantic segmentation maps.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Updated result dict.
-        """
-        results['img'] = [img[:self.size[0], :self.size[1], ...] for img in results['img']]
-        results['img_shape'] = [img.shape for img in results['img']]
-        results['img_fixed_size'] = self.size
-        return results
-
-    def __repr__(self):
-        repr_str = self.__class__.__name__
-        repr_str += f'(size={self.size}, '
-        return repr_str
-
-
-@PIPELINES.register_module()
-class RandomScaleImageMultiViewImage(object):
-    """Random scale the image
-    Args:
-        scales
-    """
-
-    def __init__(self, scales=[0.5, 1.0, 1.5]):
-        self.scales = scales
-
-    def __call__(self, results):
-        """Call function to pad images, masks, semantic segmentation maps.
-        Args:
-            results (dict): Result dict from loading pipeline.
-        Returns:
-            dict: Updated result dict.
-        """
-        np.random.shuffle(self.scales)
-        rand_scale = self.scales[0]
-        img_shape = results['img_shape'][0]
-        y_size = int(img_shape[0] * rand_scale)
-        x_size = int(img_shape[1] * rand_scale) 
-        scale_factor = np.eye(4)
-        scale_factor[0, 0] *= rand_scale
-        scale_factor[1, 1] *= rand_scale
-        results['img'] = [mmcv.imresize(img, (x_size, y_size), return_scale=False) for img in results['img']]
-        lidar2img = [scale_factor @ l2i for l2i in results['lidar2img']]
-        results['lidar2img'] = lidar2img
-        results['img_shape'] = [img.shape for img in results['img']]
-        results['gt_bboxes_3d'].tensor[:, :6] *= rand_scale
-        return results
-
-    def __repr__(self):
-        repr_str = self.__class__.__name__
-        repr_str += f'(size={self.scales}, '
-        return repr_str
-
-
-@PIPELINES.register_module()
-class HorizontalRandomFlipMultiViewImage(object):
-
-    def __init__(self, flip_ratio=0.5):
-        self.flip_ratio = 0.5
-
-    def __call__(self, results):
-        if np.random.rand() >= self.flip_ratio:
-            return results
-        results = self.flip_bbox(results)
-        results = self.flip_cam_params(results)
-        results = self.flip_img(results)
-        return results
-
-    def flip_img(self, results, direction='horizontal'):
-        results['img'] = [mmcv.imflip(img, direction) for img in results['img']]
-        return results
-
-    def flip_cam_params(self, results):
-        flip_factor = np.eye(4)
-        flip_factor[1, 1] = -1
-        lidar2cam = [l2c @ flip_factor for l2c in results['lidar2cam']]
-        w = results['img_shape'][0][1]
-        lidar2img = []
-        for cam_intrinsic, l2c in zip(results['cam_intrinsic'], lidar2cam):
-            cam_intrinsic[0, 2] = w - cam_intrinsic[0, 2]
-            lidar2img.append(cam_intrinsic @ l2c)
-        results['lidar2cam'] = lidar2cam
-        results['lidar2img'] = lidar2img
-        return results
-
-    def flip_bbox(self, input_dict, direction='horizontal'):
-        assert direction in ['horizontal', 'vertical']
-        if len(input_dict['bbox3d_fields']) == 0:  # test mode
-            input_dict['bbox3d_fields'].append('empty_box3d')
-            input_dict['empty_box3d'] = input_dict['box_type_3d'](
-                np.array([], dtype=np.float32))
-        assert len(input_dict['bbox3d_fields']) == 1
-        for key in input_dict['bbox3d_fields']:
-            if 'points' in input_dict:
-                input_dict['points'] = input_dict[key].flip(
-                    direction, points=input_dict['points'])
-            else:
-                input_dict[key].flip(direction)
-        return input_dict
 
