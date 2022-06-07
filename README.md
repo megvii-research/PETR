@@ -32,6 +32,12 @@ This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d) 
 * mmseg==0.20.2 (https://github.com/open-mmlab/mmsegmentation)  
 * mmdet3d==0.17.0  (https://github.com/open-mmlab/mmdetection3d)
 
+## Data
+* Follow the mmdet3d to process the data (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).
+## Train & inference
+* tools/dist_train.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py 8 --work-dir work_dirs/petr_r50dcn_gridmask_p4/
+* tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
+
 ## Main Results
 | Method            | mAP      | NDS     |hours    |   Download |
 |--------|----------|---------|--------|-------------|
