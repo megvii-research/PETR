@@ -6,7 +6,7 @@
 
 This repository is an official implementation of [PETR: Position Embedding Transformation for Multi-View 3D Object Detection.](https://arxiv.org/abs/2203.05625) Our implementations are built on top of Detr3d and MMdetection3D. 
 
-![avatar](./figs/overview.png)
+![PETR](./figs/overview.png)
 
 **Abstract.**  In this paper, we develop position embedding transformation
 (PETR) for multi-view 3D object detection. PETR encodes the position
@@ -33,10 +33,10 @@ This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d) 
 * mmdet3d==0.17.0  (https://github.com/open-mmlab/mmdetection3d)
 
 ## Main Results
-| Method            | mAP      | NDS     | FPS    |   Download |
+| Method            | mAP      | NDS     |hours    |   Download |
 |--------|----------|---------|--------|-------------|
-| [**PETR-r50-c5**](configs/bevdet/bevdet-sttiny.py)   | -     | -    | -  | [model](https://drive.google.com/file/d/10innSxqN7NgbktrlfPjWjE7gz-xpbJO_/view?usp=sharing)        |
-| [**PETR-r50-p4**](configs/bevdet4d/bevdet4d-sttiny.py) | -     | -    | -   | [model](https://drive.google.com/file/d/1nyQfp7Gt-xbXDzcw5ritmFb8lvPM1H6n/view?usp=sharing)       
+| [**PETR-r50-c5**](projects/configs/petr/petr_r50dcn_gridmask_c5.py)   | 30.5%     | 35.5%    | -  | [model]()        |
+| [**PETR-r50-p4**](projects/configs/petr/petr_r50dcn_gridmask_p4.py) | 31.0%     | 36.5%    | -   | [model]()       
 
 ## Citing PETR
 If you find PETR useful in your research, please consider citing: 
