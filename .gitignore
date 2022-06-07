@@ -115,7 +115,6 @@ data
 *.pkl.json
 *.log.json
 work_dirs/
-figs/
 ckpts/
 data/
 mmdetection3d/
