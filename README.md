@@ -4,9 +4,11 @@
 
 ## Introduction
 
-This repository is an official implementation of [PETR: Position Embedding Transformation for Multi-View 3D Object Detection.](https://arxiv.org/abs/2203.05625) Our implementations are built on top of Detr3d and MMdetection3D. 
+This repository is an official implementation of [PETR: Position Embedding Transformation for Multi-View 3D Object Detection.](https://arxiv.org/abs/2203.05625)
 
-![PETR](./figs/overview.png)
+<div align="center">
+  <img src="figs/overview.png"/>
+</div><br/>
 
 **Abstract.**  In this paper, we develop position embedding transformation
 (PETR) for multi-view 3D object detection. PETR encodes the position
@@ -22,27 +24,46 @@ serve as a simple yet strong baseline for future research.
 (10/03/2022) PETR is now on [ArXiv](https://arxiv.org/abs/2203.05625).
 
 
-## Installation
-This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d) and [mmdetection3d](https://github.com/open-mmlab/mmdetection3d). Many thanks to the authors for the efforts.
+## Preparation
+This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d) and [mmdetection3d](https://github.com/open-mmlab/mmdetection3d). 
 
-## Requirements
-* Linux, Python==3.6.8, CUDA == 11.2, pytorch == 1.9.0
-* mmcv==1.4.0 (https://github.com/open-mmlab/mmcv)  
-* mmdet==2.24.1  (https://github.com/open-mmlab/mmdetection)  
-* mmseg==0.20.2 (https://github.com/open-mmlab/mmsegmentation)  
-* mmdet3d==0.17.0  (https://github.com/open-mmlab/mmdetection3d)
+* Environments  
+Linux, Python==3.6.8, CUDA == 11.2, pytorch == 1.9.0  
+Install mmcv==1.4.0 (https://github.com/open-mmlab/mmcv)  
+Install mmdet==2.24.1  (https://github.com/open-mmlab/mmdetection)  
+Install mmseg==0.20.2 (https://github.com/open-mmlab/mmsegmentation)  
+Install mmdet3d==0.17.0  (https://github.com/open-mmlab/mmdetection3d)
 
-## Data
-* Follow the mmdet3d to process the data (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).
+* Data  & pretrained weights  
+Follow the mmdet3d to process the data (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).  
+Please put the pretrained weights into ./ckpts/
+
+
 ## Train & inference
-* tools/dist_train.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py 8 --work-dir work_dirs/petr_r50dcn_gridmask_p4/
-* tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
-
+```bash
+git clone https://github.com/megvii-research/PETR.git
+```
+```bash
+cd PETR
+```
+You can train the model following:
+```bash
+tools/dist_train.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py 8 --work-dir work_dirs/petr_r50dcn_gridmask_p4/
+```
+You can evaluate the model following:
+```bash
+tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
+```
 ## Main Results
+We provide some results on nuScenes val set with pretrained models. These model are trained without cbgs.
+
 | Method            | mAP      | NDS     |hours    |   Download |
 |--------|----------|---------|--------|-------------|
-| [**PETR-r50-c5**](projects/configs/petr/petr_r50dcn_gridmask_c5.py)   | 30.5%     | 35.5%    | -  | [model]()        |
-| [**PETR-r50-p4**](projects/configs/petr/petr_r50dcn_gridmask_p4.py) | 31.0%     | 36.5%    | -   | [model]()       
+| [**PETR-r50-c5**](projects/configs/petr/petr_r50dcn_gridmask_c5.py)   | 30.5%     | 35.0%    | -  | [model]()        |
+| [**PETR-r50-p4**](projects/configs/petr/petr_r50dcn_gridmask_p4.py) | 31.70%     | 36.7%    | -   | [model]()       
+
+## Acknowledgement
+Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d).
 
 ## Citing PETR
 If you find PETR useful in your research, please consider citing: 
