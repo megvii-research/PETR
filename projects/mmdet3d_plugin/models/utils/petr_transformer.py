@@ -88,42 +88,11 @@ class PETRTransformer(BaseModule):
                       [bs, embed_dims, h, w].
         """
         bs, n, c, h, w = x.shape
-       
-        if self.cross:
-            x = x.permute(1, 3, 4, 0, 2).reshape(-1, bs, c)  # [bs, c, h, w] -> [n*h*w, bs, c]
-            pos_embed = pos_embed.permute(1, 3, 4, 0, 2).reshape(-1, bs, c)
-            query_embed = query_embed.unsqueeze(1).repeat(
-                1, bs, 1)  # [num_query, dim] -> [num_query, bs, dim]
-            mask = mask.view(bs, -1)  # [bs, n, h, w] -> [bs, n*h*w]
-            if self.encoder is not None:
-                memory = self.encoder(
-                    query=x,
-                    key=None,
-                    value=None,
-                    query_pos=pos_embed,
-                    query_key_padding_mask=mask)
-            else:
-                memory = x.clone()
-        else:
-            x = x.view(bs*n, c, -1).permute(2, 0, 1)  # [bs, n, c, h, w] -> [h*w, bs*n, c]
-            pos_embed = pos_embed.view(bs*n, c, -1).permute(2, 0, 1)
-            mask = mask.view(bs*n, -1)  # [bs, n, h, w] -> [bs*n, h*w]
-            if self.encoder is not None:
-                memory = self.encoder(
-                    query=x,
-                    key=None,
-                    value=None,
-                    query_pos=pos_embed,
-                    query_key_padding_mask=mask)
-            else:
-                memory = x.clone()
-            
-            memory = memory.reshape(h*w, bs, n, c).permute(2, 0, 1, 3).reshape(-1, bs, c) # [h*w, bs*n, c] -> [n*h*w, bs, c]
-            pos_embed = pos_embed.reshape(h*w, bs, n, c).permute(2, 0, 1, 3).reshape(-1, bs, c)
-            query_embed = query_embed.unsqueeze(1).repeat(
-                1, bs, 1)  # [num_query, dim] -> [num_query, bs, dim]
-            mask = mask.reshape(bs, n, -1).view(bs, -1)  # [bs*n, h*w] -> [bs, n*h*w]
-
+        memory = x.permute(1, 3, 4, 0, 2).reshape(-1, bs, c) # [bs, n, c, h, w] -> [n*h*w, bs, c]
+        pos_embed = pos_embed.permute(1, 3, 4, 0, 2).reshape(-1, bs, c) # [bs, n, c, h, w] -> [n*h*w, bs, c]
+        query_embed = query_embed.unsqueeze(1).repeat(
+            1, bs, 1)  # [num_query, dim] -> [num_query, bs, dim]
+        mask = mask.view(bs, -1)  # [bs, n, h, w] -> [bs, n*h*w]
         target = torch.zeros_like(query_embed)
 
         # out_dec: [num_layers, num_query, bs, dim]
@@ -253,7 +222,6 @@ class PETRTransformerDecoderLayer(BaseTransformerLayer):
             query_key_padding_mask=query_key_padding_mask,
             key_padding_mask=key_padding_mask
             )
-        
         return x
 
 @ATTENTION.register_module()

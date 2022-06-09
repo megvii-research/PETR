@@ -20,7 +20,7 @@ nuScenes dataset and ranks 1st place on the leaderboard. It can
 serve as a simple yet strong baseline for future research.
 
 ## News
-(06/06/2022) PETRv2 explores the effectiveness of temporal modeling and high-quality BEV segmentation. [ArXiv](https://arxiv.org/abs/2203.05625)  
+(06/06/2022) PETRv2 explores the effectiveness of temporal modeling and high-quality BEV segmentation. [ArXiv](https://arxiv.org/abs/2206.01256)  
 (10/03/2022) PETR is now on [ArXiv](https://arxiv.org/abs/2203.05625).
 
 
@@ -59,8 +59,10 @@ We provide some results on nuScenes val set with pretrained models. These model 
 
 | Method            | mAP      | NDS     |hours    |   Download |
 |--------|----------|---------|--------|-------------|
-| [**PETR-r50-c5**](projects/configs/petr/petr_r50dcn_gridmask_c5.py)   | 30.5%     | 35.0%    | -  | [model]()        |
-| [**PETR-r50-p4**](projects/configs/petr/petr_r50dcn_gridmask_p4.py) | 31.70%     | 36.7%    | -   | [model]()       
+| [**PETR-r50-c5-1408x512**](projects/configs/petr/petr_r50dcn_gridmask_c5.py)   | 30.5%     | 35.0%    | -  | [model]()        |
+| [**PETR-r50-p4-1408x512**](projects/configs/petr/petr_r50dcn_gridmask_p4.py) | 31.70%     | 36.7%    | -   | [model]()    
+| [**PETR-vov-p4-800x320**](projects/configs/petr/petr_vovnet_gridmask_p4_800x320.py)   | 37.8%     | 42.6%    | -  | [model]()        |
+| [**PETR-vov-p4-1600x640**](projects/configs/petr/petr_vovnet_gridmask_p4_1600x640.py) | 40.40%     | 45.5%    | -   | [model]()       
 
 ## Acknowledgement
 Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d).
