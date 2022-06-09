@@ -1,4 +1,12 @@
-
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Copyright (c) Youngwan Lee (ETRI) All Rights Reserved.
+# Copyright 2021 Toyota Research Institute.  All rights reserved.
+# ------------------------------------------------------------------------
 from collections import OrderedDict
 from mmcv.runner import BaseModule
 from mmdet.models.builder import BACKBONES
