@@ -208,8 +208,8 @@ data = dict(
         # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
         # and box_type_3d='Depth' in sunrgbd and scannet dataset.
         box_type_3d='LiDAR'),
-    val=dict(pipeline=test_pipeline, classes=class_names, modality=input_modality),
-    test=dict(pipeline=test_pipeline, classes=class_names, modality=input_modality))
+    val=dict(type=dataset_type, pipeline=test_pipeline, classes=class_names, modality=input_modality),
+    test=dict(type=dataset_type, pipeline=test_pipeline, classes=class_names, modality=input_modality))
 
 optimizer = dict(
     type='AdamW', 
@@ -238,3 +238,26 @@ find_unused_parameters = False
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 load_from=None
 resume_from=None
+
+# mAP: 0.3050
+# mATE: 0.8504
+# mASE: 0.2813
+# mAOE: 0.6539
+# mAVE: 1.0381
+# mAAE: 0.2438
+# NDS: 0.3496
+# Eval time: 313.1s
+
+# Per-class results:
+# Object Class    AP      ATE     ASE     AOE     AVE     AAE
+# car     0.500   0.608   0.156   0.122   1.091   0.243
+# truck   0.259   0.876   0.239   0.203   0.975   0.264
+# bus     0.300   0.912   0.222   0.197   2.383   0.446
+# trailer 0.104   1.169   0.253   0.630   0.480   0.070
+# construction_vehicle    0.051   1.161   0.495   1.266   0.126   0.399
+# pedestrian      0.395   0.755   0.298   1.132   0.854   0.340
+# motorcycle      0.293   0.749   0.269   0.983   1.929   0.157
+# bicycle 0.274   0.777   0.271   1.191   0.467   0.031
+# traffic_cone    0.482   0.649   0.331   nan     nan     nan
+# barrier 0.392   0.847   0.280   0.162   nan     nan
+

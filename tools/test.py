@@ -15,7 +15,7 @@ from mmdet3d.datasets import build_dataloader, build_dataset
 from mmdet3d.models import build_model
 from mmdet.apis import multi_gpu_test, set_random_seed
 from mmdet.datasets import replace_ImageToTensor
-from projects.mmdet3d_plugin import build_distiller
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -150,6 +150,7 @@ def main():
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
 
+    cfg.model.pretrained = None
     # in case the test dataset is concatenated
     samples_per_gpu = 1
     if isinstance(cfg.data.test, dict):
@@ -189,21 +190,8 @@ def main():
         shuffle=False)
 
     # build the model and load checkpoint
-    distiller_cfg = cfg.get('distiller',None)
-    if distiller_cfg is None:
-        cfg.model.pretrained = None
-        cfg.model.train_cfg = None
-        model = build_model(cfg.model, test_cfg=cfg.get('test_cfg'))
-    else:
-        teacher_cfg = Config.fromfile(cfg.teacher_cfg)
-        student_cfg = Config.fromfile(cfg.student_cfg)
-        
-        model = build_distiller(cfg.distiller,teacher_cfg,student_cfg,
-        train_cfg=student_cfg.get('train_cfg'), 
-        test_cfg=student_cfg.get('test_cfg'))
-        cfg.model=student_cfg.get('model')
-        model.teacher._is_init = True
-
+    cfg.model.train_cfg = None
+    model = build_model(cfg.model, test_cfg=cfg.get('test_cfg'))
     fp16_cfg = cfg.get('fp16', None)
     if fp16_cfg is not None:
         wrap_fp16_model(model)
@@ -223,20 +211,17 @@ def main():
         # segmentation dataset has `PALETTE` attribute
         model.PALETTE = dataset.PALETTE
 
-    
-    if args.show:
+    if not distributed:
         model = MMDataParallel(model, device_ids=[0])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
     else:
-        if not distributed:
-            model = MMDataParallel(model, device_ids=[0])
-            outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
-        else:
-            model = MMDistributedDataParallel(
-                model.cuda(),
-                device_ids=[torch.cuda.current_device()],
-                broadcast_buffers=False)
-            outputs = multi_gpu_test(model, data_loader, args.tmpdir, args.gpu_collect)
+        model = MMDistributedDataParallel(
+            model.cuda(),
+            device_ids=[torch.cuda.current_device()],
+            broadcast_buffers=False)
+        outputs = multi_gpu_test(model, data_loader, args.tmpdir,
+                                 args.gpu_collect)
+
     rank, _ = get_dist_info()
     if rank == 0:
         if args.out:
