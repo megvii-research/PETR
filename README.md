@@ -13,12 +13,12 @@ In this paper, we develop position embedding transformation
 (PETR) for multi-view 3D object detection. PETR encodes the position
 information of 3D coordinates into image features, producing the
 3D position-aware features. Object query can perceive the 3D position-aware features and perform end-to-end object detection. It can
-serve as a simple yet strong baseline for future research.
+serve as a simple yet strong baseline for future research.  
 
 ## News
-**2022.06.10** The codes of PETR is released.  
+**2022.06.10** The code of PETR is released.  
 **2022.06.06** PETRv2 is released on [arxiv](https://arxiv.org/abs/2206.01256).  
-**2022.06.01** PETRv2 achieves another SOTA performance (58.2% NDS and 49.0% mAP) by the temporal modeling and supports BEV segmentation.  
+**2022.06.01** PETRv2 achieves another SOTA performance on nuScenes dataset (58.2% NDS and 49.0% mAP) by the temporal modeling and supports BEV segmentation.  
 **2022.03.10** PETR is released on [arxiv](https://arxiv.org/abs/2203.05625).  
 **2022.03.08** PETR achieves SOTA performance (50.4% NDS and 44.1% mAP) on standard nuScenes dataset.
 
@@ -33,9 +33,9 @@ This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d),
   ```
 
 * Data   
-Follow the mmdet3d to process the NuScenes dataset (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).  
+Follow the mmdet3d to process the nuScenes dataset (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).  
 * Pretrained weights   
-To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on NuScenes [train set]() with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). Please put the pretrained weights into ./ckpts/.
+To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on nuScenes **train set** with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). Please put the pretrained weights into ./ckpts/.
 
 * After preparation, you will be able to see the following directory structure:  
   ```
@@ -67,7 +67,7 @@ You can evaluate the model following:
 tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
 ```
 ## Main Results
-We provide some results on nuScenes [val set]() with pretrained models. These model are trained on 8x 2080ti [without cbgs](). Note that the models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/1-JkzOxKy4isMiiNHd20Z-w) with code `petr`.
+We provide some results on nuScenes **val set** with pretrained models. These model are trained on 8x 2080ti **without cbgs**. Note that the models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/1-JkzOxKy4isMiiNHd20Z-w) with code `petr`.
 
 | config            | mAP      | NDS     |training    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
@@ -102,4 +102,4 @@ If you find this project useful for your research, please consider citing:
 }
 ```
 ## Contact
-If you have any questions, feel free to open an issue or contact us at liuyingfei@megvii.com.
+If you have any questions, feel free to open an issue or contact us at liuyingfei@megvii.com or wangtiancai@megvii.com.
