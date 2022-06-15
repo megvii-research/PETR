@@ -23,19 +23,16 @@ serve as a simple yet strong baseline for future research.
 **2022.03.08** PETR achieves SOTA performance (50.4% NDS and 44.1% mAP) on standard nuScenes dataset.
 
 ## Preparation
-This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d), which can be constructed as the [instructions](https://github.com/WangYueFt/detr3d/blob/main/README.md).
+This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d/blob/main/README.md), and can be constructed as the [install.md](./install.md).
 
 * Environments  
   Linux, Python==3.6.8, CUDA == 11.2, pytorch == 1.9.0, mmdet3d == 0.17.1   
 
-  ```bash
-  pip install -r requirements.txt
-  ```
-
 * Data   
 Follow the mmdet3d to process the nuScenes dataset (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).  
 * Pretrained weights   
-To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on nuScenes **train set** with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). Please put the pretrained weights into ./ckpts/.
+To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on nuScenes **train set** with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). The ImageNet pretrained weights of other backbone can be found [here](https://github.com/open-mmlab/mmcv/blob/master/mmcv/model_zoo/open_mmlab.json).
+Please put the pretrained weights into ./ckpts/. 
 
 * After preparation, you will be able to see the following directory structure:  
   ```
@@ -52,9 +49,9 @@ To verify the performance on the val set, we provide the pretrained V2-99 [weigh
   ```
 
 ## Train & inference
-```bash
+<!-- ```bash
 git clone https://github.com/megvii-research/PETR.git
-```
+``` -->
 ```bash
 cd PETR
 ```
@@ -67,7 +64,7 @@ You can evaluate the model following:
 tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
 ```
 ## Main Results
-We provide some results on nuScenes **val set** with pretrained models. These model are trained on 8x 2080ti **without cbgs**. Note that the models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/1-JkzOxKy4isMiiNHd20Z-w) with code `petr`.
+PETR: We provide some results on nuScenes **val set** with pretrained models. These model are trained on 8x 2080ti **without cbgs**. Note that the models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/1-JkzOxKy4isMiiNHd20Z-w) with code `petr`.
 
 | config            | mAP      | NDS     |training    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
@@ -76,8 +73,10 @@ We provide some results on nuScenes **val set** with pretrained models. These mo
 | PETR-vov-p4-800x320   | 37.8%     | 42.6%    | 17hours  | [config](projects/configs/petr/petr_vovnet_gridmask_p4_800x320.py)   |   [log](https://drive.google.com/file/d/1eG914jDVK3YXvbubR8VUjP2NnzYpDvHC/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1-afU8MhAf92dneOIbhoVxl_b72IAWOEJ/view?usp=sharing)        |
 | PETR-vov-p4-1600x640 | 40.40%     | 45.5%    | 36hours   | [config](projects/configs/petr/petr_vovnet_gridmask_p4_1600x640.py)   |   [log](https://drive.google.com/file/d/1XfO5fb_Nd6jhQ3foBUG7WCz0SlTlBKu8/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1SV0_n0PhIraEXHJ1jIdMu3iMg9YZsm8c/view?usp=sharing)  
 
-
-
+<!-- PETRv2: We provide a 3D object detection baseline with two frame. The model is trained on 8x 2080ti **without cbgs**. 
+| config            | mAP      | NDS     |training    |   config |   download |
+|:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
+| PETRv2-vov-p4-800x320   | -     | -    | -  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  |   - / -     -->
 
 ## Acknowledgement
 Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d) .
