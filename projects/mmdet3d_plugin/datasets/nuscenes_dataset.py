@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
 # Modified from DETR3D (https://github.com/WangYueFt/detr3d)
 # Copyright (c) 2021 Wang, Yue
@@ -38,7 +38,6 @@ class CustomNuScenesDataset(NuScenesDataset):
         # standard protocal modified from SECOND.Pytorch
         input_dict = dict(
             sample_idx=info['token'],
-            # lidar_token=info['lidar_token'],
             pts_filename=info['lidar_path'],
             sweeps=info['sweeps'],
             timestamp=info['timestamp'] / 1e6,
@@ -49,7 +48,9 @@ class CustomNuScenesDataset(NuScenesDataset):
             lidar2img_rts = []
             intrinsics = []
             extrinsics = []
+            img_timestamp = []
             for cam_type, cam_info in info['cams'].items():
+                img_timestamp.append(cam_info['timestamp'] / 1e6)
                 image_paths.append(cam_info['data_path'])
                 # obtain lidar to image transformation matrix
                 lidar2cam_r = np.linalg.inv(cam_info['sensor2lidar_rotation'])
@@ -68,6 +69,7 @@ class CustomNuScenesDataset(NuScenesDataset):
 
             input_dict.update(
                 dict(
+                    img_timestamp=img_timestamp,
                     img_filename=image_paths,
                     lidar2img=lidar2img_rts,
                     intrinsics=intrinsics,
@@ -78,4 +80,3 @@ class CustomNuScenesDataset(NuScenesDataset):
             annos = self.get_ann_info(index)
             input_dict['ann_info'] = annos
         return input_dict
-

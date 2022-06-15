@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
 # Modified from DETR3D (https://github.com/WangYueFt/detr3d)
 # Copyright (c) 2021 Wang, Yue
@@ -10,4 +10,5 @@
 from .dgcnn3d_head import DGCNN3DHead
 from .detr3d_head import Detr3DHead
 from .petr_head import PETRHead
-__all__ = ['DGCNN3DHead', 'Detr3DHead','PETRHead']
+from .petrv2_head import PETRv2Head
+__all__ = ['DGCNN3DHead', 'Detr3DHead','PETRHead','PETRv2Head']

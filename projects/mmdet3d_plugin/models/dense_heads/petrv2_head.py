@@ -7,12 +7,13 @@
 # Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
 # Copyright (c) OpenMMLab. All rights reserved.
 # ------------------------------------------------------------------------
+from xml.etree.ElementPath import prepare_descendant
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import Conv2d, Linear, build_activation_layer, bias_init_with_prob
 from mmcv.cnn.bricks.transformer import FFN, build_positional_encoding
-from mmcv.runner import force_fp32
+from mmcv.runner import force_fp32, auto_fp16
 from mmdet.core import (bbox_cxcywh_to_xyxy, bbox_xyxy_to_cxcywh,
                         build_assigner, build_sampler, multi_apply,
                         reduce_mean)
@@ -26,6 +27,7 @@ import numpy as np
 from mmcv.cnn import xavier_init, constant_init, kaiming_init
 import math
 from mmdet.models.utils import NormedLinear
+import copy
 def pos2posemb3d(pos, num_pos_feats=128, temperature=10000):
     scale = 2 * math.pi
     pos = pos * scale
@@ -40,8 +42,55 @@ def pos2posemb3d(pos, num_pos_feats=128, temperature=10000):
     posemb = torch.cat((pos_y, pos_x, pos_z), dim=-1)
     return posemb
 
+class SELayer(nn.Module):
+    def __init__(self, channels, act_layer=nn.ReLU, gate_layer=nn.Sigmoid):
+        super().__init__()
+        self.conv_reduce = nn.Conv2d(channels, channels, 1, bias=True)
+        self.act1 = act_layer()
+        self.conv_expand = nn.Conv2d(channels, channels, 1, bias=True)
+        self.gate = gate_layer()
+
+    def forward(self, x, x_se):
+        x_se = self.conv_reduce(x_se)
+        x_se = self.act1(x_se)
+        x_se = self.conv_expand(x_se)
+        return x * self.gate(x_se)
+
+class RegLayer(nn.Module):
+    def __init__(self,  embed_dims=256, 
+                        shared_reg_fcs=2, 
+                        group_reg_dims=(2, 1, 3, 2, 2),  # xy, z, size, rot, velo
+                        act_layer=nn.ReLU, 
+                        drop=0.0):
+        super().__init__()
+
+        reg_branch = []
+        for _ in range(shared_reg_fcs):
+            reg_branch.append(Linear(embed_dims, embed_dims))
+            reg_branch.append(act_layer())
+            reg_branch.append(nn.Dropout(drop))
+        self.reg_branch = nn.Sequential(*reg_branch)
+
+        self.task_heads = nn.ModuleList()
+        for reg_dim in group_reg_dims:
+            task_head = nn.Sequential(
+                Linear(embed_dims, embed_dims),
+                act_layer(),
+                Linear(embed_dims, reg_dim)
+            )
+            self.task_heads.append(task_head)
+
+    def forward(self, x):
+        reg_feat = self.reg_branch(x)
+        outs = []
+        for task_head in self.task_heads:
+            out = task_head(reg_feat.clone())
+            outs.append(out)
+        outs = torch.cat(outs, -1)
+        return outs
+
 @HEADS.register_module()
-class PETRHead(AnchorFreeHead):
+class PETRv2Head(AnchorFreeHead):
     """Implements the DETR transformer head.
     See `paper: End-to-End Object Detection with Transformers
     <https://arxiv.org/pdf/2005.12872>`_ for details.
@@ -106,9 +155,14 @@ class PETRHead(AnchorFreeHead):
                  depth_num=64,
                  LID=False,
                  depth_start = 1,
+                 position_level = 0,
                  position_range=[-65, -65, -8.0, 65, 65, 8.0],
+                 group_reg_dims=(2, 1, 3, 2, 2),  # xy, z, size, rot, velo
                  init_cfg=None,
                  normedlinear=False,
+                 with_fpe=False,
+                 with_time=False,
+                 with_multi=False,
                  **kwargs):
         # NOTE here use `AnchorFreeHead` instead of `TransformerHead`,
         # since it brings inconvenience when the initialization of
@@ -125,7 +179,7 @@ class PETRHead(AnchorFreeHead):
         self.bg_cls_weight = 0
         self.sync_cls_avg_factor = sync_cls_avg_factor
         class_weight = loss_cls.get('class_weight', None)
-        if class_weight is not None and (self.__class__ is PETRHead):
+        if class_weight is not None and (self.__class__ is PETRv2Head):
             assert isinstance(class_weight, float), 'Expected ' \
                 'class_weight to have type float. Found ' \
                 f'{type(class_weight)}.'
@@ -175,7 +229,7 @@ class PETRHead(AnchorFreeHead):
         self.position_range = position_range
         self.LID = LID
         self.depth_start = depth_start
-        self.position_level = 0
+        self.position_level = position_level
         self.with_position = with_position
         self.with_multiview = with_multiview
         assert 'num_feats' in positional_encoding
@@ -187,7 +241,11 @@ class PETRHead(AnchorFreeHead):
                                        dict(type='ReLU', inplace=True))
         self.num_pred = 6
         self.normedlinear = normedlinear
-        super(PETRHead, self).__init__(num_classes, in_channels, init_cfg = init_cfg)
+        self.with_fpe = with_fpe
+        self.with_time = with_time
+        self.with_multi = with_multi
+        self.group_reg_dims = group_reg_dims
+        super(PETRv2Head, self).__init__(num_classes, in_channels, init_cfg = init_cfg)
 
         self.loss_cls = build_loss(loss_cls)
         self.loss_bbox = build_loss(loss_bbox)
@@ -197,10 +255,6 @@ class PETRHead(AnchorFreeHead):
             self.cls_out_channels = num_classes
         else:
             self.cls_out_channels = num_classes + 1
-        # self.activate = build_activation_layer(self.act_cfg)
-        # if self.with_multiview or not self.with_position:
-        #     self.positional_encoding = build_positional_encoding(
-        #         positional_encoding)
         self.positional_encoding = build_positional_encoding(
                 positional_encoding)
         self.transformer = build_transformer(transformer)
@@ -230,17 +284,20 @@ class PETRHead(AnchorFreeHead):
             cls_branch.append(Linear(self.embed_dims, self.cls_out_channels))
         fc_cls = nn.Sequential(*cls_branch)
 
-        reg_branch = []
-        for _ in range(self.num_reg_fcs):
-            reg_branch.append(Linear(self.embed_dims, self.embed_dims))
-            reg_branch.append(nn.ReLU())
-        reg_branch.append(Linear(self.embed_dims, self.code_size))
-        reg_branch = nn.Sequential(*reg_branch)
-
+        if self.with_multi:
+            reg_branch = RegLayer(self.embed_dims, self.num_reg_fcs, self.group_reg_dims)
+        else:
+            reg_branch = []
+            for _ in range(self.num_reg_fcs):
+                reg_branch.append(Linear(self.embed_dims, self.embed_dims))
+                reg_branch.append(nn.ReLU())
+            reg_branch.append(Linear(self.embed_dims, self.code_size))
+            reg_branch = nn.Sequential(*reg_branch)
+        
         self.cls_branches = nn.ModuleList(
-            [fc_cls for _ in range(self.num_pred)])
+            [copy.deepcopy(fc_cls) for _ in range(self.num_pred)])
         self.reg_branches = nn.ModuleList(
-            [reg_branch for _ in range(self.num_pred)])
+            [copy.deepcopy(reg_branch) for _ in range(self.num_pred)])
 
         if self.with_multiview:
             self.adapt_pos3d = nn.Sequential(
@@ -268,6 +325,8 @@ class PETRHead(AnchorFreeHead):
             nn.ReLU(),
             nn.Linear(self.embed_dims, self.embed_dims),
         )
+        if self.with_fpe:
+            self.fpe = SELayer(self.embed_dims)
 
     def init_weights(self):
         """Initialize weights of the transformer head."""
@@ -282,6 +341,7 @@ class PETRHead(AnchorFreeHead):
     def position_embeding(self, img_feats, img_metas, masks=None):
         eps = 1e-5
         pad_h, pad_w, _ = img_metas[0]['pad_shape'][0]
+        
         B, N, C, H, W = img_feats[self.position_level].shape
         coords_h = torch.arange(H, device=img_feats[0].device).float() * pad_h / H
         coords_w = torch.arange(W, device=img_feats[0].device).float() * pad_w / W
@@ -336,7 +396,7 @@ class PETRHead(AnchorFreeHead):
 
         # Names of some parameters in has been changed.
         version = local_metadata.get('version', None)
-        if (version is None or version < 2) and self.__class__ is PETRHead:
+        if (version is None or version < 2) and self.__class__ is PETRv2Head:
             convert_dict = {
                 '.self_attn.': '.attentions.0.',
                 # '.ffn.': '.ffns.0.',
@@ -371,8 +431,9 @@ class PETRHead(AnchorFreeHead):
                 Shape [nb_dec, bs, num_query, 9].
         """
         
-        x = mlvl_feats[0]
+        x = mlvl_feats[self.position_level]
         batch_size, num_cams = x.size(0), x.size(1)
+
         input_img_h, input_img_w, _ = img_metas[0]['pad_shape'][0]
         masks = x.new_ones(
             (batch_size, num_cams, input_img_h, input_img_w))
@@ -380,15 +441,21 @@ class PETRHead(AnchorFreeHead):
             for cam_id in range(num_cams):
                 img_h, img_w, _ = img_metas[img_id]['img_shape'][cam_id]
                 masks[img_id, cam_id, :img_h, :img_w] = 0
+            
         x = self.input_proj(x.flatten(0,1))
         x = x.view(batch_size, num_cams, *x.shape[-3:])
+
         # interpolate masks to have the same spatial shape with x
         masks = F.interpolate(
             masks, size=x.shape[-2:]).to(torch.bool)
 
         if self.with_position:
             coords_position_embeding, _ = self.position_embeding(mlvl_feats, img_metas, masks)
+            if self.with_fpe:
+                coords_position_embeding = self.fpe(coords_position_embeding.flatten(0,1), x.flatten(0,1)).view(x.size())
+
             pos_embed = coords_position_embeding
+
             if self.with_multiview:
                 sin_embed = self.positional_encoding(masks)
                 sin_embed = self.adapt_pos3d(sin_embed.flatten(0, 1)).view(x.size())
@@ -411,13 +478,22 @@ class PETRHead(AnchorFreeHead):
                     pos_embed = self.positional_encoding(masks[:, i, :, :])
                     pos_embeds.append(pos_embed.unsqueeze(1))
                 pos_embed = torch.cat(pos_embeds, 1)
+        
 
         reference_points = self.reference_points.weight
         query_embeds = self.query_embedding(pos2posemb3d(reference_points))
         reference_points = reference_points.unsqueeze(0).repeat(batch_size, 1, 1) #.sigmoid()
-
         outs_dec, _ = self.transformer(x, masks, query_embeds, pos_embed, self.reg_branches)
         outs_dec = torch.nan_to_num(outs_dec)
+        
+        if self.with_time:
+            time_stamps = []
+            for img_meta in img_metas:    
+                time_stamps.append(np.asarray(img_meta['timestamp']))
+            time_stamp = x.new_tensor(time_stamps)
+            time_stamp = time_stamp.view(batch_size, -1, 6)
+            mean_time_stamp = (time_stamp[:, 1, :] - time_stamp[:, 0, :]).mean(-1)
+        
         outputs_classes = []
         outputs_coords = []
         for lvl in range(outs_dec.shape[0]):
@@ -430,6 +506,9 @@ class PETRHead(AnchorFreeHead):
             tmp[..., 0:2] = tmp[..., 0:2].sigmoid()
             tmp[..., 4:5] += reference[..., 2:3]
             tmp[..., 4:5] = tmp[..., 4:5].sigmoid()
+
+            if self.with_time:
+                tmp[..., 8:] = tmp[..., 8:] / mean_time_stamp
 
             outputs_coord = tmp
             outputs_classes.append(outputs_class)
@@ -503,7 +582,11 @@ class PETRHead(AnchorFreeHead):
         bbox_weights[pos_inds] = 1.0
         # print(gt_bboxes.size(), bbox_pred.size())
         # DETR
-        bbox_targets[pos_inds] = sampling_result.pos_gt_bboxes
+        if sampling_result.pos_gt_bboxes.shape[1] == 4:
+            bbox_targets[pos_inds] = sampling_result.pos_gt_bboxes.reshape(sampling_result.pos_gt_bboxes.shape[0], self.code_size - 1)
+        else:
+            bbox_targets[pos_inds] = sampling_result.pos_gt_bboxes
+
         return (labels, label_weights, bbox_targets, bbox_weights, 
                 pos_inds, neg_inds)
 
@@ -666,7 +749,7 @@ class PETRHead(AnchorFreeHead):
         all_bbox_preds = preds_dicts['all_bbox_preds']
         enc_cls_scores = preds_dicts['enc_cls_scores']
         enc_bbox_preds = preds_dicts['enc_bbox_preds']
-
+        # print(gt_labels_list)
         num_dec_layers = len(all_cls_scores)
         device = gt_labels_list[0].device
         gt_bboxes_list = [torch.cat(
