@@ -12,10 +12,10 @@ This repository is an official implementation of [PETR: Position Embedding Trans
 In this paper, we develop position embedding transformation
 (PETR) for multi-view 3D object detection. PETR encodes the position
 information of 3D coordinates into image features, producing the
-3D position-aware features. Object query can perceive the 3D position-aware features and perform end-to-end object detection. It can
-serve as a simple yet strong baseline for future research.  
+3D position-aware features. Object query can perceive the 3D position-aware features and perform end-to-end object detection. It can serve as a simple yet strong baseline for future research.  
 
 ## News
+**2022.06.16** The code of 3D object detection in PETRv2 is released.  
 **2022.06.10** The code of PETR is released.  
 **2022.06.06** PETRv2 is released on [arxiv](https://arxiv.org/abs/2206.01256).  
 **2022.06.01** PETRv2 achieves another SOTA performance on nuScenes dataset (58.2% NDS and 49.0% mAP) by the temporal modeling and supports BEV segmentation.  
@@ -73,10 +73,10 @@ PETR: We provide some results on nuScenes **val set** with pretrained models. Th
 | PETR-vov-p4-800x320   | 37.8%     | 42.6%    | 17hours  | [config](projects/configs/petr/petr_vovnet_gridmask_p4_800x320.py)   |   [log](https://drive.google.com/file/d/1eG914jDVK3YXvbubR8VUjP2NnzYpDvHC/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1-afU8MhAf92dneOIbhoVxl_b72IAWOEJ/view?usp=sharing)        |
 | PETR-vov-p4-1600x640 | 40.40%     | 45.5%    | 36hours   | [config](projects/configs/petr/petr_vovnet_gridmask_p4_1600x640.py)   |   [log](https://drive.google.com/file/d/1XfO5fb_Nd6jhQ3foBUG7WCz0SlTlBKu8/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1SV0_n0PhIraEXHJ1jIdMu3iMg9YZsm8c/view?usp=sharing)  
 
-<!-- PETRv2: We provide a 3D object detection baseline with two frame. The model is trained on 8x 2080ti **without cbgs**. 
+PETRv2: We provide a 3D object detection baseline with two frames. The model is trained on 8x 2080ti **without cbgs**. The processed [info files](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing) contain 30 previous frames, whose transformation matrix is aligned with the current frame.  The info files, models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/10dpbLS64phuG-0n1WWB9Cw) with code `petr`.
 | config            | mAP      | NDS     |training    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
-| PETRv2-vov-p4-800x320   | -     | -    | -  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  |   - / -     -->
+| PETRv2-vov-p4-800x320   | 41.0%     | 50.3%    | 30hours  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1tv_D8Ahp9tz5n4pFp4a64k-IrUZPu5Im/view?usp=sharing)    
 
 ## Acknowledgement
 Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d) .
