@@ -15,7 +15,7 @@ from .transform_3d import (
     ResizeCropFlipImage,
     GlobalRotScaleTransImage
     )
-from .loading import LoadMultiViewImageFromMultiSweepsFiles
+from .loading import LoadMultiViewImageFromMultiSweepsFiles,LoadMapsFromFiles
 __all__ = [
-    'PadMultiViewImage', 'NormalizeMultiviewImage', 'PhotoMetricDistortionMultiViewImage', 'LoadMultiViewImageFromMultiSweepsFiles',
+    'PadMultiViewImage', 'NormalizeMultiviewImage', 'PhotoMetricDistortionMultiViewImage', 'LoadMultiViewImageFromMultiSweepsFiles','LoadMapsFromFiles',
     'ResizeMultiview3D','AlbuMultiview3D','ResizeCropFlipImage','GlobalRotScaleTransImage']

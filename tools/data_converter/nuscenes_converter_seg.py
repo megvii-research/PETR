@@ -1,17 +1,30 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2022 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from DETR3D (https://github.com/WangYueFt/detr3d)
+# Copyright (c) 2021 Wang, Yue
+# ------------------------------------------------------------------------
+# Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
 # Copyright (c) OpenMMLab. All rights reserved.
+# ------------------------------------------------------------------------
 import mmcv
 import numpy as np
 import os
+import math
+import cv2
 from collections import OrderedDict
 from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.geometry_utils import view_points
 from os import path as osp
 from pyquaternion import Quaternion
+from nuscenes.utils.data_classes import Box
 from shapely.geometry import MultiPoint, box
 from typing import List, Tuple, Union
-
+import torch
+import torch.nn.functional as F
 from mmdet3d.core.bbox.box_np_ops import points_cam2img
 from mmdet3d.datasets import NuScenesDataset
+from .map_api import NuScenesMap
 
 nus_categories = ('car', 'truck', 'trailer', 'bus', 'construction_vehicle',
                   'bicycle', 'motorcycle', 'pedestrian', 'traffic_cone',
@@ -41,6 +54,12 @@ def create_nuscenes_infos(root_path,
     """
     from nuscenes.nuscenes import NuScenes
     nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+    nusc_maps = {
+        'boston-seaport': NuScenesMap(dataroot=root_path, map_name='boston-seaport'),
+        'singapore-hollandvillage': NuScenesMap(dataroot=root_path, map_name='singapore-hollandvillage'),
+        'singapore-onenorth': NuScenesMap(dataroot=root_path, map_name='singapore-onenorth'),
+        'singapore-queenstown': NuScenesMap(dataroot=root_path, map_name='singapore-queenstown'),
+    }
     from nuscenes.utils import splits
     available_vers = ['v1.0-trainval', 'v1.0-test', 'v1.0-mini']
     assert version in available_vers
@@ -78,7 +97,7 @@ def create_nuscenes_infos(root_path,
         print('train scene: {}, val scene: {}'.format(
             len(train_scenes), len(val_scenes)))
     train_nusc_infos, val_nusc_infos = _fill_trainval_infos(
-        nusc, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
+        nusc, nusc_maps, train_scenes, val_scenes, info_prefix,test, max_sweeps=max_sweeps)
 
     metadata = dict(version=version)
     if test:
@@ -98,6 +117,13 @@ def create_nuscenes_infos(root_path,
         info_val_path = osp.join(root_path,
                                  '{}_infos_val.pkl'.format(info_prefix))
         mmcv.dump(data, info_val_path)
+
+def gen_dx_bx(xbound, ybound, zbound):
+    dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])
+    bx = torch.Tensor([row[0] + row[2]/2.0 for row in [xbound, ybound, zbound]])
+    nx = torch.LongTensor([(row[1] - row[0]) / row[2] for row in [xbound, ybound, zbound]])
+
+    return dx, bx, nx
 
 
 def get_available_scenes(nusc):
@@ -120,6 +146,7 @@ def get_available_scenes(nusc):
         scene_rec = nusc.get('scene', scene_token)
         sample_rec = nusc.get('sample', scene_rec['first_sample_token'])
         sd_rec = nusc.get('sample_data', sample_rec['data']['LIDAR_TOP'])
+
         has_more_frames = True
         scene_not_exist = False
         while has_more_frames:
@@ -142,8 +169,10 @@ def get_available_scenes(nusc):
 
 
 def _fill_trainval_infos(nusc,
+                         nusc_maps,
                          train_scenes,
                          val_scenes,
+                         info_prefix,
                          test=False,
                          max_sweeps=10):
     """Generate the train/val infos from the raw data.
@@ -170,12 +199,16 @@ def _fill_trainval_infos(nusc,
                              sd_rec['calibrated_sensor_token'])
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
-
+        
+        # lidarseg_labels_filename = os.path.join(nusc.dataroot,
+                                                # nusc.get('lidarseg', lidar_token)['filename'])
+        
+        
         mmcv.check_file_exist(lidar_path)
 
         info = {
-            'lidar_token': lidar_token,
             'lidar_path': lidar_path,
+            # 'lidar_label':lidarseg_labels_filename,
             'token': sample['token'],
             'sweeps': [],
             'cams': dict(),
@@ -210,12 +243,6 @@ def _fill_trainval_infos(nusc,
             cam_info.update(cam_intrinsic=cam_intrinsic)
             info['cams'].update({cam: cam_info})
 
-            sd_rec = nusc.get('sample_data', cam_token)
-            s_rec = nusc.get('sample', sd_rec['sample_token'])
-            ann_recs = [nusc.get('sample_annotation', token) for token in s_rec['anns']]
-            visibility = [ann_rec['visibility_token'] for ann_rec in ann_recs]
-            # print(visibility)
-
         # obtain sweeps for a single key-frame
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
         sweeps = []
@@ -228,6 +255,9 @@ def _fill_trainval_infos(nusc,
             else:
                 break
         info['sweeps'] = sweeps
+
+        info['maps'] = obtain_map_info(nusc, nusc_maps, sample, l2e_r_mat, l2e_t,
+                                       e2g_r_mat, e2g_t, lidar_path,info_prefix)
         # obtain annotation
         if not test:
             annotations = [
@@ -629,3 +659,124 @@ def generate_record(ann_rec: dict, x1: float, y1: float, x2: float, y2: float,
     coco_rec['iscrowd'] = 0
 
     return coco_rec
+
+
+def get_binimg( nusc, rec):
+        dx, bx, nx = gen_dx_bx([-51.2, 51.2, 0.4], [-51.2, 51.2, 0.4], [-5, 3, 8])
+        dx, bx, nx = dx.numpy(), bx.numpy(), nx.numpy()
+        egopose = nusc.get('ego_pose',
+                                nusc.get('sample_data', rec['data']['LIDAR_TOP'])['ego_pose_token'])
+        trans = -np.array(egopose['translation'])
+        rot = Quaternion(egopose['rotation']).inverse
+        img = np.zeros((nx[0], nx[1]))
+        for tok in rec['anns']:
+            inst = nusc.get('sample_annotation', tok)
+            # add category for lyft
+            if not inst['category_name'].split('.')[0] == 'vehicle':
+                continue
+            box = Box(inst['translation'], inst['size'], Quaternion(inst['rotation']))
+            box.translate(trans)
+            box.rotate(rot)
+
+            pts = box.bottom_corners()[:2].T
+            pts = np.round(
+                (pts - bx[:2] + dx[:2]/2.) / dx[:2]
+                ).astype(np.int32)
+            pts[:, [1, 0]] = pts[:, [0, 1]]
+            cv2.fillPoly(img, [pts], 1.0)
+
+        return img
+
+
+
+def obtain_map_info(nusc, nusc_maps, sample, l2e_r_mat, l2e_t, e2g_r_mat, e2g_t, lidar_path,info_prefix,
+                    patch_size=(102.4, 102.4), canvas_size=(256, 256),
+                    # layer_names=['lane_divider', 'road_divider'],
+                    layer_names=['lane_divider', 'road_divider'],
+                    thickness=10):
+    """Export 2d annotation from the info file and raw data.
+    """
+    scene = nusc.get('scene', sample['scene_token'])
+    log = nusc.get('log', scene['log_token'])
+    nusc_map = nusc_maps[log['location']]
+    if layer_names is None:
+        layer_names = nusc_map.non_geometric_layers
+
+    # Get geometry of each layer.
+    l2g_r_mat = (l2e_r_mat.T @ e2g_r_mat.T).T
+    l2g_t = l2e_t @ e2g_r_mat.T + e2g_t
+    patch_box = (l2g_t[0], l2g_t[1], patch_size[0], patch_size[1])
+    patch_angle = math.degrees(Quaternion(matrix=l2g_r_mat).yaw_pitch_roll[0])
+
+    # Get semantic map masks
+    # kernel = np.ones((thickness, thickness), dtype=np.uint8)
+    # seg_mask = cv2.dilate(tmp_mask, kernel, 1)
+    # map_mask = np.concatenate([map_mask[:-2], seg_mask[None], tmp_mask[None]], axis=0)
+    bin_img = get_binimg (nusc,sample)
+    bin_img=np.rot90(bin_img,3)
+    
+    map_mask = nusc_map.get_map_mask(patch_box, patch_angle, layer_names, canvas_size=canvas_size)
+    map_mask = map_mask[-2] | map_mask[-1]
+    
+    # map_mask = cv2.connectedComponentsWithStats(map_mask)[1]
+    # map_mask = np.concatenate([map_mask[:-2], tmp_mask[None]], axis=0)
+    map_mask=map_mask[np.newaxis,:]
+    map_mask = map_mask.transpose((2, 1, 0)).squeeze(2)             # (H, W, C)
+    map_mask=np.rot90(map_mask,2)
+    # map_mask=map_mask[:,:,0]
+    # map_mask = map_mask[::-1]                                     # (H, W, C)
+    # map_mask = map_mask[:map_mask.shape[0] // 2]
+    # cv2.imwrite('map1.jpg',map_mask*255)
+
+    # kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))  # 定义矩形核
+    # map_mask=map_mask.astype(np.uint8)
+    # map_mask = cv2.dilate(map_mask, kernel, iterations=1)  # 膨胀操作   
+    # map_mask=map_mask.astype(np.int32)
+
+    # cv2.imwrite('map2.jpg',map_mask*255) 
+    # map_mask=map_mask.astype(np.uint8)
+    # map_mask=cv2.resize(map_mask,(128,128))
+    # map_mask=map_mask.astype(np.int32)
+    # cv2.imwrite('map5.jpg',map_mask*255)
+    # map_mask=map_mask.astype(np.uint8)
+    # map_mask=cv2.resize(map_mask,(1024,1024))
+    # map_mask=map_mask.astype(np.int32)
+    # cv2.imwrite('map6.jpg',map_mask*255)
+    # map_mask = extract_boundary(map_mask, thickness=thickness, worker_id=0)
+    
+    erode=nusc_map.get_map_mask(patch_box, patch_angle, ['drivable_area'], canvas_size=canvas_size)
+    # erode=erode.repeat(3,axis=0)
+    erode = erode.transpose((2, 1, 0)).squeeze(2)
+    erode=np.rot90(erode,2)
+
+    map_mask=map_mask*(1-bin_img)
+    erode=erode*(1-map_mask)*(1-bin_img)
+
+    # erode=erode.astype(np.uint8)
+    # mask=cv2.Canny(erode*255,32,128)
+    # mask = cv2.connectedComponentsWithStats(mask)[1]
+
+    # mask=mask.astype(np.uint8)
+    # mask=mask[:,:,np.newaxis]
+    # mask=cv2.dilate(mask, kernel, iterations=1)
+    # img_contour, contours, hierarchy = cv2.findContours(map_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    # mask = cv2.drawContours(mask, contours[0], 0, (255, 255, 255), -1)
+    # cv2.imwrite('map3.jpg',mask*255)
+    
+    # mask=mask.astype(np.int32)
+    
+    map_mask=np.concatenate([erode[None],map_mask[None],bin_img[None]], axis=0)
+    # map_mask=np.rot90(map_mask,2)
+    map_mask = map_mask.transpose((1, 2, 0))
+    
+    map_info = dict()
+    map_mask_path = osp.join(nusc.dataroot, info_prefix)
+    os.makedirs(map_mask_path, exist_ok=True)
+    map_mask_path = osp.join(info_prefix, osp.splitext(osp.basename(lidar_path))[0] + '.npz')
+    map_mask_path=osp.join(nusc.dataroot, map_mask_path)
+    np.savez_compressed(map_mask_path, map_mask)
+    map_info.update({'map_mask': map_mask_path})
+    return map_info
+
+
+

@@ -8,8 +8,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 # ------------------------------------------------------------------------
 from .nuscenes_dataset import CustomNuScenesDataset
+from .multi_nuscenes_dataset import MultiCustomNuScenesDataset
 __all__ = [
-    'CustomNuScenesDataset'
+    'CustomNuScenesDataset','MultiCustomNuScenesDataset'
 ]
 
 

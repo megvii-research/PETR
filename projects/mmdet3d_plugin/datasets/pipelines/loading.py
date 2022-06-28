@@ -4,6 +4,26 @@
 import mmcv
 import numpy as np
 from mmdet.datasets.builder import PIPELINES
+from einops import rearrange
+
+@PIPELINES.register_module()
+class LoadMapsFromFiles(object):
+    def __init__(self,k=None):
+        self.k=k
+    def __call__(self,results):
+        map_filename=results['map_filename']
+        maps=np.load(map_filename)
+        map_mask=maps['arr_0'].astype(np.float32)
+        
+        maps=map_mask.transpose((2,0,1))
+        results['gt_map']=maps
+        maps=rearrange(maps, 'c (h h1) (w w2) -> (h w) c h1 w2 ', h1=16, w2=16)
+        maps=maps.reshape(256,3*256)
+        results['map_shape']=maps.shape
+        results['maps']=maps
+        return results
+
+
 
 @PIPELINES.register_module()
 class LoadMultiViewImageFromMultiSweepsFiles(object):
