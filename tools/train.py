@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
 # Modified from DETR3D (https://github.com/WangYueFt/detr3d)
 # Copyright (c) 2021 Wang, Yue
@@ -29,7 +29,7 @@ from mmdet3d.models import build_model
 from mmdet3d.utils import collect_env, get_root_logger
 from mmdet.apis import set_random_seed
 from mmseg import __version__ as mmseg_version
-# from mmdet.utils import get_device
+from mmdet.utils import get_device
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
@@ -196,7 +196,7 @@ def main():
                 dash_line)
     meta['env_info'] = env_info
     meta['config'] = cfg.pretty_text
-    # cfg.device = get_device()
+    cfg.device = get_device()
     # log some basic info
     logger.info(f'Distributed training: {distributed}')
     logger.info(f'Config:\n{cfg.pretty_text}')
@@ -255,4 +255,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

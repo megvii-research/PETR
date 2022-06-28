@@ -89,8 +89,8 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 | PETRv2-vov-p4-800x320   | 41.0%     | 50.3%    | 30hours  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1tv_D8Ahp9tz5n4pFp4a64k-IrUZPu5Im/view?usp=sharing)    
 
 
-| config            | Drive      | Lane   |  Vehicle     |training    |   config |   download  |
-|:--------:|:----------:|:---------:|:--------:||:--------:|:--------:|:-------------:|
+| config            | Drive      | Lane   |  Vehicle     |training    |   config |download  |
+|:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|
 | PETRv2_BEVseg   | 79.1%     | 44.7%   | 49.9%     | 30hours  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log] / [gdrive]    
 
 
