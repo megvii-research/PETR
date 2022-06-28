@@ -45,8 +45,9 @@ Then build Segmentation dataset:
   cd tools
   python build-dataset.py
   ```
+  
+  If you want to train the segmentation task immediately, we privided the processed data ( HDmaps.tar ) at [gdrive](https://drive.google.com/file/d/1hr1NN3n6FWLLG5mjngk_yjMXpyv44oEo/view?usp=sharing) and [Baidu Netdisk](https://pan.baidu.com/s/1kF4i7os_4LEHbCVsn4WWww). The processed info files of segmentation can also be find at [gdrive](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing) and [Baidu Netdisk](https://pan.baidu.com/s/19Tr08kXoxmaElasiF_QShg). The code of Baidu Netdisk is `petr`.
 
-We also privided the processed data and info files are also available at [Baidu Netdisk](https://pan.baidu.com/s/10dpbLS64phuG-0n1WWB9Cw) with code `petr`.
 
 * Pretrained weights   
 To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on nuScenes **train set** with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). The ImageNet pretrained weights of other backbone can be found [here](https://github.com/open-mmlab/mmcv/blob/master/mmcv/model_zoo/open_mmlab.json).
@@ -93,7 +94,7 @@ PETR: We provide some results on nuScenes **val set** with pretrained models. Th
 | PETR-vov-p4-800x320   | 37.8%     | 42.6%    | 17hours  | [config](projects/configs/petr/petr_vovnet_gridmask_p4_800x320.py)   |   [log](https://drive.google.com/file/d/1eG914jDVK3YXvbubR8VUjP2NnzYpDvHC/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1-afU8MhAf92dneOIbhoVxl_b72IAWOEJ/view?usp=sharing)        |
 | PETR-vov-p4-1600x640 | 40.40%     | 45.5%    | 36hours   | [config](projects/configs/petr/petr_vovnet_gridmask_p4_1600x640.py)   |   [log](https://drive.google.com/file/d/1XfO5fb_Nd6jhQ3foBUG7WCz0SlTlBKu8/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1SV0_n0PhIraEXHJ1jIdMu3iMg9YZsm8c/view?usp=sharing)  
 
-PETRv2: We provide a 3D object detection baseline and a BEV segmentation baseline with two frames. The model is trained on 8x 2080ti **without cbgs**. The processed [info files](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing) contain 30 previous frames, whose transformation matrix is aligned with the current frame.  The info files, models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/10dpbLS64phuG-0n1WWB9Cw) with code `petr`.
+PETRv2: We provide a 3D object detection baseline and a BEV segmentation baseline with two frames. The model is trained on 8x 2080ti **without cbgs**. The processed [info files](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing) contain 30 previous frames, whose transformation matrix is aligned with the current frame.  The info files, models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/10IaWAq1mljX5ztLzQT_4Kg) with code `petr`.
 | config            | mAP      | NDS     |training    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
 | PETRv2-vov-p4-800x320   | 41.0%     | 50.3%    | 30hours  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1tv_D8Ahp9tz5n4pFp4a64k-IrUZPu5Im/view?usp=sharing)    
@@ -101,7 +102,7 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 
 | config            | Drive      | Lane   |  Vehicle     |training    |   config |download  |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|
-| PETRv2_BEVseg   | 79.1%     | 44.7%   | 49.9%     | 30hours  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log] / [gdrive]    
+| PETRv2_BEVseg   | 79.1%     | 44.7%   | 49.9%     | 30hours  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log](https://drive.google.com/file/d/1PkAWcCag6ElsvF3PNoRNrEdeo39epVso/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1MP5a3C4Bj43uG_ao3P1RNF-xIvHkBUY7/view?usp=sharing)   
 
 
 
@@ -129,4 +130,4 @@ If you find this project useful for your research, please consider citing:
 }
 ```
 ## Contact
-If you have any questions, feel free to open an issue or contact us at liuyingfei@megvii.com or wangtiancai@megvii.com.
+If you have any questions, feel free to open an issue or contact us at liuyingfei@megvii.com, yanjunjie@megvii.com or wangtiancai@megvii.com.
