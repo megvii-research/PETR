@@ -1,20 +1,27 @@
-# PETR: Position Embedding Transformation for Multi-View 3D Object Detection
+# Position Embedding Transformation for Multi-View 3D Object Detection
 [![arXiv](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2203.05625)
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=megvii-research/PETR)
 <!-- ## Introduction -->
 
-This repository is an official implementation of [PETR: Position Embedding Transformation for Multi-View 3D Object Detection.](https://arxiv.org/abs/2203.05625)
+This repository is an official implementation of [PETR](https://arxiv.org/abs/2203.05625) and [PETRv2](https://arxiv.org/abs/2206.01256) 
 
 <div align="center">
   <img src="figs/overview.png"/>
 </div><br/>
 
-In this paper, we develop position embedding transformation
+PETR develops position embedding transformation
 (PETR) for multi-view 3D object detection. PETR encodes the position
 information of 3D coordinates into image features, producing the
 3D position-aware features. Object query can perceive the 3D position-aware features and perform end-to-end object detection. It can serve as a simple yet strong baseline for future research.  
 
+<div align="center">
+  <img src="figs/overall.png"/>
+</div><br/>
+
+PETRv2 is a unified framework for 3D perception from multi-view images. Based on PETR, PETRv2 explores the effectiveness of temporal modeling, which utilizes the temporal information of previous frames to boost 3D object detection. The 3D PE achieves the temporal alignment on object position of different frames. A feature-guided position encoder is further introduced to improve the data adaptability of 3D PE. To support for high-quality BEV segmentation, PETRv2 provides a simply yet effective solution by adding a set of segmentation queries. Each segmentation query is responsible for segmenting one specific patch of BEV map. PETRv2 achieves state-of-the-art performance on 3D object detection and BEV segmentation. 
+
 ## News
+**2022.06.28** The code of BEV Segmentation in PETRv2 is released.  
 **2022.06.16** The code of 3D object detection in PETRv2 is released.  
 **2022.06.10** The code of PETR is released.  
 **2022.06.06** PETRv2 is released on [arxiv](https://arxiv.org/abs/2206.01256).  
@@ -39,6 +46,7 @@ Then build Segmentation dataset:
   python build-dataset.py
   ```
 
+We also privided the processed data and info files are also available at [Baidu Netdisk](https://pan.baidu.com/s/10dpbLS64phuG-0n1WWB9Cw) with code `petr`.
 
 * Pretrained weights   
 To verify the performance on the val set, we provide the pretrained V2-99 [weights](https://drive.google.com/file/d/1ABI5BoQCkCkP4B0pO5KBJ3Ni0tei0gZi/view?usp=sharing). The V2-99 is pretrained on DDAD15M ([weights](https://tri-ml-public.s3.amazonaws.com/github/dd3d/pretrained/depth_pretrained_v99-3jlw0p36-20210423_010520-model_final-remapped.pth)) and further trained on nuScenes **train set** with FCOS3D.  For the results on test set in the paper, we use the DD3D pretrained [weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN). The ImageNet pretrained weights of other backbone can be found [here](https://github.com/open-mmlab/mmcv/blob/master/mmcv/model_zoo/open_mmlab.json).
@@ -54,6 +62,8 @@ Please put the pretrained weights into ./ckpts/.
   ├── tools
   ├── data
   │   ├── nuscenes
+  │     ├── HDmaps-nocover
+  │     ├── ...
   ├── ckpts
   ├── README.md
   ```
