@@ -64,7 +64,7 @@ class CustomNuScenesDataset(NuScenesDataset):
                 viewpad[:intrinsic.shape[0], :intrinsic.shape[1]] = intrinsic
                 lidar2img_rt = (viewpad @ lidar2cam_rt.T)
                 intrinsics.append(viewpad)
-                extrinsics.append(lidar2cam_rt)
+                extrinsics.append(np.linalg.inv(lidar2cam_rt.T))
                 lidar2img_rts.append(lidar2img_rt)
 
             input_dict.update(
