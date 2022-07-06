@@ -27,30 +27,27 @@ model = dict(
     type='Petr3D',
     use_grid_mask=True,
     img_backbone=dict(
-        type='VoVNetCP', ###use checkpoint to save memory
+        type='VoVNetCP',
         spec_name='V-99-eSE',
         norm_eval=True,
         frozen_stages=-1,
         input_ch=3,
         out_features=('stage4','stage5',)),
     img_neck=dict(
-        type='CPFPN',  ###remove unused parameters 
+        type='CPFPN',
         in_channels=[768, 1024],
         out_channels=256,
-        num_outs=2),
+        num_outs=2), 
     pts_bbox_head=dict(
-        type='PETRv2Head',
+        type='PETRHead',
         num_classes=10,
         in_channels=256,
-        num_query=1500,
+        num_query=900,
         LID=True,
         with_position=True,
         with_multiview=True,
-        with_fpe=True,
-        with_time=True,
-        with_multi=True,
         position_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
-        code_weights = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        normedlinear=False,
         transformer=dict(
             type='PETRTransformer',
             decoder=dict(
@@ -73,12 +70,13 @@ model = dict(
                         ],
                     feedforward_channels=2048,
                     ffn_dropout=0.1,
-                    with_cp=True,  ###use checkpoint to save memory
+                    with_cp=True,
                     operation_order=('self_attn', 'norm', 'cross_attn', 'norm',
                                      'ffn', 'norm')),
             )),
         bbox_coder=dict(
             type='NMSFreeCoder',
+            # type='NMSFreeClsCoder',
             post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
             pc_range=point_cloud_range,
             max_num=300,
@@ -154,15 +152,16 @@ ida_aug_conf = {
         "rot_lim": (0.0, 0.0),
         "H": 900,
         "W": 1600,
+        # "rand_flip": False,
         "rand_flip": True,
     }
 train_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
-    dict(type='LoadMultiViewImageFromMultiSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, test_mode=False, sweep_range=[3,27]),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
     dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=True),
+    # dict(type='ResizeMultiview3D', img_scale=[(1800, 640), (1800, 900)], multiscale_mode='range', keep_ratio=True), 
     dict(type='GlobalRotScaleTransImage',
             rot_range=[-0.3925, 0.3925],
             translation_std=[0, 0, 0],
@@ -173,15 +172,12 @@ train_pipeline = [
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='PadMultiViewImage', size_divisor=32),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
-    dict(type='Collect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img'],
-            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics',
-                'pad_shape', 'scale_factor', 'flip', 'box_mode_3d', 'box_type_3d',
-                'img_norm_cfg', 'sample_idx', 'timestamp'))
+    dict(type='Collect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img'])
 ]
 test_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
-    dict(type='LoadMultiViewImageFromMultiSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, sweep_range=[3,27]),
     dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=False),
+    # dict(type='ResizeMultiview3D', img_scale= (1600, 800), keep_ratio=True),
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='PadMultiViewImage', size_divisor=32),
     dict(
@@ -194,10 +190,7 @@ test_pipeline = [
                 type='DefaultFormatBundle3D',
                 class_names=class_names,
                 with_label=False),
-            dict(type='Collect3D', keys=['img'],
-            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics',
-                'pad_shape', 'scale_factor', 'flip', 'box_mode_3d', 'box_type_3d',
-                'img_norm_cfg', 'sample_idx', 'timestamp'))
+            dict(type='Collect3D', keys=['img'])
         ])
 ]
 
@@ -209,7 +202,7 @@ data = dict(
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
-            ann_file=[data_root + 'mmdet3d_nuscenes_30f_infos_train.pkl', data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl'],
+            ann_file=[data_root + 'nuscenes_infos_train.pkl', data_root + 'nuscenes_infos_val.pkl',],
             pipeline=train_pipeline,
             classes=class_names,
             modality=input_modality,
@@ -219,9 +212,8 @@ data = dict(
             # and box_type_3d='Depth' in sunrgbd and scannet dataset.
             box_type_3d='LiDAR'),
     ),
-    val=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl', classes=class_names, modality=input_modality),
-    test=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_test.pkl', classes=class_names, modality=input_modality))
-
+    val=dict(type=dataset_type, pipeline=test_pipeline, classes=class_names, modality=input_modality),
+    test=dict(type=dataset_type, ann_file=data_root + 'nuscenes_infos_test.pkl', pipeline=test_pipeline, classes=class_names, modality=input_modality))
 
 optimizer = dict(
     type='AdamW', 
@@ -241,37 +233,12 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     min_lr_ratio=1e-3,
+    # by_epoch=False
     )
 total_epochs = 24
 evaluation = dict(interval=24, pipeline=test_pipeline)
-find_unused_parameters=False #### when use checkpoint, find_unused_parameters must be False
-checkpoint_config = dict(interval=1, max_keep_ckpts=3)
+find_unused_parameters = False
+
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
-load_from='ckpts/dd3d_det_final.pth'
+load_from='ckpts/dd3d_det_final.pth'   
 resume_from=None
-
-
-# Evaluating bboxes of pts_bbox
-# add center
-# mAP: 0.8412
-# mATE: 0.3252
-# mASE: 0.1556
-# mAOE: 0.0708
-# mAVE: 0.1758
-# mAAE: 0.1784
-# NDS: 0.8300
-# Eval time: 192.6s
-
-# Per-class results:
-# Object Class    AP      ATE     ASE     AOE     AVE     AAE
-# car     0.863   0.256   0.119   0.033   0.177   0.196
-# truck   0.840   0.309   0.124   0.031   0.145   0.215
-# bus     0.845   0.344   0.125   0.031   0.268   0.210
-# trailer 0.779   0.430   0.135   0.042   0.111   0.095
-# construction_vehicle    0.799   0.410   0.196   0.062   0.135   0.306
-# pedestrian      0.815   0.370   0.212   0.195   0.196   0.141
-# motorcycle      0.826   0.340   0.166   0.098   0.257   0.241
-# bicycle 0.880   0.276   0.182   0.093   0.117   0.023
-# traffic_cone    0.884   0.238   0.174   nan     nan     nan
-# barrier 0.881   0.280   0.122   0.052   nan     nan
-
