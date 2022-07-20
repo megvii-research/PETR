@@ -543,8 +543,7 @@ class GlobalRotScaleTransImage(object):
         num_view = len(results["lidar2img"])
         for view in range(num_view):
             results["lidar2img"][view] = (torch.tensor(results["lidar2img"][view]).float() @ rot_mat_inv).numpy()
-            results["extrinsics"][view] = (torch.tensor(results["extrinsics"][view]).float() @ rot_mat_inv).numpy()
-
+            results["extrinsics"][view] = (torch.tensor(rot_mat_inv.T @ results["extrinsics"][view]).float()).numpy()
         return
 
 @PIPELINES.register_module()
