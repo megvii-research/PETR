@@ -244,7 +244,42 @@ class Petr3D_seg(MVXTwoStageDetector):
             gt_map=gt_map[0].view(3,-1) 
             
             ret_iou=IOU(f_lane,gt_map).cpu()
-            
+            show_res=False
+            if show_res:
+            # select good quality results
+            # if ret_iou[0]>0.79 and ret_iou[1]>0.45 and ret_iou[2]>0.51:
+
+                pres=f_lane_show
+                pre=torch.zeros(256,256,3)
+                pre+=255
+                label=[[71,130,255],[255,255,0],[255,144,30]]
+                # label=[[255,0,0],[0,255,0],[0,0,255]]
+                pre[...,0][pres[0]==1]=label[0][0]
+                pre[...,1][pres[0]==1]=label[0][1]
+                pre[...,2][pres[0]==1]=label[0][2]
+                pre[...,0][pres[2]==1]=label[2][0]
+                pre[...,1][pres[2]==1]=label[2][1]
+                pre[...,2][pres[2]==1]=label[2][2]
+                pre[...,0][pres[1]==1]=label[1][0]
+                pre[...,1][pres[1]==1]=label[1][1]
+                pre[...,2][pres[1]==1]=label[1][2]
+                cv2.imwrite('./res-pre/'+str(ret_iou[0])+'_'+str(ret_iou[1])+'_'+str(ret_iou[2])+'_'+img_metas[0]['sample_idx']+'.png',pre.cpu().numpy())
+                pres=gt_map_show[0]
+                pre=torch.zeros(256,256,3)
+                pre+=255
+                label=[[71,130,255],[255,255,0],[255,144,30]]
+                # label=[[255,0,0],[0,255,0],[0,0,255]]
+                pre[...,0][pres[0]==1]=label[0][0]
+                pre[...,1][pres[0]==1]=label[0][1]
+                pre[...,2][pres[0]==1]=label[0][2]
+                pre[...,0][pres[2]==1]=label[2][0]
+                pre[...,1][pres[2]==1]=label[2][1]
+                pre[...,2][pres[2]==1]=label[2][2]
+                pre[...,0][pres[1]==1]=label[1][0]
+                pre[...,1][pres[1]==1]=label[1][1]
+                pre[...,2][pres[1]==1]=label[1][2]
+                cv2.imwrite('./res-gt/'+str(ret_iou[0])+'_'+str(ret_iou[1])+'_'+str(ret_iou[2])+'_'+img_metas[0]['sample_idx']+'.png',pre.cpu().numpy())
+               
         return bbox_results, ret_iou
 
 
