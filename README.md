@@ -85,6 +85,16 @@ You can evaluate the model following:
 ```bash
 tools/dist_test.sh projects/configs/petr/petr_r50dcn_gridmask_p4.py work_dirs/petr_r50dcn_gridmask_p4/latest.pth 8 --eval bbox
 ```
+## Visualize
+You can generate the reault json following:
+```bash
+./tools/dist_test.sh projects/configs/petr/petr_vovnet_gridmask_p4_800x320.py work_dirs/petr_vovnet_gridmask_p4_800x320/latest.pth 8 --out work_dirs/pp-nus/results_eval.pkl --format-only --eval-options 'jsonfile_prefix=work_dirs/pp-nus/results_eval'
+```
+You can visualize the 3D object detection following:
+```bash
+python3 tools/visualize.py
+```
+
 ## Main Results
 PETR: We provide some results on nuScenes **val set** with pretrained models. These model are trained on 8x 2080ti **without cbgs**. Note that the models and logs are also available at [Baidu Netdisk](https://pan.baidu.com/s/1-JkzOxKy4isMiiNHd20Z-w) with code `petr`.
 
