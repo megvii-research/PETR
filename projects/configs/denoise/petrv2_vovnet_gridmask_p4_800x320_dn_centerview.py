@@ -251,6 +251,3 @@ runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 load_from='ckpts/fcos3d_vovnet_imgbackbone-remapped.pth'
 resume_from=None
 
-###
-#Center views have no affect on nuscenes dataset with 1600x640. We provide this config for long-range objects in practical application.  
-###

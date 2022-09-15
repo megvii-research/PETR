@@ -471,11 +471,11 @@ class MSResizeCropFlipImage(object):
         size (tuple, optional): Fixed padding size.
     """
 
-    def __init__(self, data_aug_conf=None, training=True, view_num=1, sample_ids=[]):
+    def __init__(self, data_aug_conf=None, training=True, view_num=1, center_size=2.0):
         self.data_aug_conf = data_aug_conf
         self.training = training
         self.view_num = view_num
-        self.sample_ids = sample_ids
+        self.center_size = center_size
 
     def __call__(self, results):
         """Call function to pad images, masks, semantic segmentation maps.
@@ -489,21 +489,16 @@ class MSResizeCropFlipImage(object):
         N = len(imgs)
         new_imgs = []
         resize, resize_dims, crop, flip, rotate = self._sample_augmentation()
-        if self.sample_ids == 0 :
-            choices = list(range(self.view_num))
-        else:
-            choices = self.sample_ids
 
         copy_intrinsics = []
         copy_extrinsics = []
-        for i in choices:
+        for i in range(self.view_num):
             copy_intrinsics.append(np.copy(results['intrinsics'][i]))
             copy_extrinsics.append(np.copy(results['extrinsics'][i]))
 
         for i in range(N):
             img = Image.fromarray(np.uint8(imgs[i]))
             # augmentation (resize, crop, horizontal flip, rotate)
-            # resize, resize_dims, crop, flip, rotate = self._sample_augmentation()  ###different view use different aug (BEV Det)
             img, ida_mat = self._img_transform(
                 img,
                 resize=resize,
@@ -516,8 +511,7 @@ class MSResizeCropFlipImage(object):
             results['intrinsics'][i][:3, :3] = ida_mat @ results['intrinsics'][i][:3, :3]
         
         resize, resize_dims, crop, flip, rotate = self._crop_augmentation(resize)
-
-        for j, i in enumerate(choices):
+        for i in range(self.view_num):
             img = Image.fromarray(np.copy(np.uint8(imgs[i])))
             img, ida_mat = self._img_transform(
                 img,
@@ -528,9 +522,9 @@ class MSResizeCropFlipImage(object):
                 rotate=rotate,
             )
             new_imgs.append(np.array(img).astype(np.float32))
-            copy_intrinsics[j][:3, :3] = ida_mat @ copy_intrinsics[j][:3, :3]
-            results['intrinsics'].append(copy_intrinsics[j])
-            results['extrinsics'].append(copy_extrinsics[j])
+            copy_intrinsics[i][:3, :3] = ida_mat @ copy_intrinsics[i][:3, :3]
+            results['intrinsics'].append(copy_intrinsics[i])
+            results['extrinsics'].append(copy_extrinsics[i])
             results['filename'].append(results['filename'][i].replace(".jpg","_crop.jpg"))
             results['timestamp'].append(results['timestamp'][i])
 
@@ -603,7 +597,7 @@ class MSResizeCropFlipImage(object):
     def _crop_augmentation(self, resize):
         H, W = self.data_aug_conf["H"], self.data_aug_conf["W"]
         fH, fW = self.data_aug_conf["final_dim"]
-        resize = 2.0 * resize
+        resize = self.center_size * resize
         resize_dims = (int(W * resize), int(H * resize))
         newW, newH = resize_dims
         crop_h = int(max(0, newH - fH)/2)
