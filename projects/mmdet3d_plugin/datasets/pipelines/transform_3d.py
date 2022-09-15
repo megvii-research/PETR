@@ -464,6 +464,154 @@ class ResizeCropFlipImage(object):
             rotate = 0
         return resize, resize_dims, crop, flip, rotate
 
+@PIPELINES.register_module()
+class MSResizeCropFlipImage(object):
+    """Random resize, Crop and flip the image
+    Args:
+        size (tuple, optional): Fixed padding size.
+    """
+
+    def __init__(self, data_aug_conf=None, training=True, view_num=1, sample_ids=[]):
+        self.data_aug_conf = data_aug_conf
+        self.training = training
+        self.view_num = view_num
+        self.sample_ids = sample_ids
+
+    def __call__(self, results):
+        """Call function to pad images, masks, semantic segmentation maps.
+        Args:
+            results (dict): Result dict from loading pipeline.
+        Returns:
+            dict: Updated result dict.
+        """
+
+        imgs = results["img"]
+        N = len(imgs)
+        new_imgs = []
+        resize, resize_dims, crop, flip, rotate = self._sample_augmentation()
+        if self.sample_ids == 0 :
+            choices = list(range(self.view_num))
+        else:
+            choices = self.sample_ids
+
+        copy_intrinsics = []
+        copy_extrinsics = []
+        for i in choices:
+            copy_intrinsics.append(np.copy(results['intrinsics'][i]))
+            copy_extrinsics.append(np.copy(results['extrinsics'][i]))
+
+        for i in range(N):
+            img = Image.fromarray(np.uint8(imgs[i]))
+            # augmentation (resize, crop, horizontal flip, rotate)
+            # resize, resize_dims, crop, flip, rotate = self._sample_augmentation()  ###different view use different aug (BEV Det)
+            img, ida_mat = self._img_transform(
+                img,
+                resize=resize,
+                resize_dims=resize_dims,
+                crop=crop,
+                flip=flip,
+                rotate=rotate,
+            )
+            new_imgs.append(np.array(img).astype(np.float32))
+            results['intrinsics'][i][:3, :3] = ida_mat @ results['intrinsics'][i][:3, :3]
+        
+        resize, resize_dims, crop, flip, rotate = self._crop_augmentation(resize)
+
+        for j, i in enumerate(choices):
+            img = Image.fromarray(np.copy(np.uint8(imgs[i])))
+            img, ida_mat = self._img_transform(
+                img,
+                resize=resize,
+                resize_dims=resize_dims,
+                crop=crop,
+                flip=flip,
+                rotate=rotate,
+            )
+            new_imgs.append(np.array(img).astype(np.float32))
+            copy_intrinsics[j][:3, :3] = ida_mat @ copy_intrinsics[j][:3, :3]
+            results['intrinsics'].append(copy_intrinsics[j])
+            results['extrinsics'].append(copy_extrinsics[j])
+            results['filename'].append(results['filename'][i].replace(".jpg","_crop.jpg"))
+            results['timestamp'].append(results['timestamp'][i])
+
+        results["img"] = new_imgs
+        results['lidar2img'] = [results['intrinsics'][i] @ results['extrinsics'][i].T for i in range(len(results['extrinsics']))]
+        return results
+
+    def _get_rot(self, h):
+
+        return torch.Tensor(
+            [
+                [np.cos(h), np.sin(h)],
+                [-np.sin(h), np.cos(h)],
+            ]
+        )
+
+    def _img_transform(self, img, resize, resize_dims, crop, flip, rotate):
+        ida_rot = torch.eye(2)
+        ida_tran = torch.zeros(2)
+        # adjust image
+        img = img.resize(resize_dims)
+        img = img.crop(crop)
+        if flip:
+            img = img.transpose(method=Image.FLIP_LEFT_RIGHT)
+        img = img.rotate(rotate)
+
+        # post-homography transformation
+        ida_rot *= resize
+        ida_tran -= torch.Tensor(crop[:2])
+        if flip:
+            A = torch.Tensor([[-1, 0], [0, 1]])
+            b = torch.Tensor([crop[2] - crop[0], 0])
+            ida_rot = A.matmul(ida_rot)
+            ida_tran = A.matmul(ida_tran) + b
+        A = self._get_rot(rotate / 180 * np.pi)
+        b = torch.Tensor([crop[2] - crop[0], crop[3] - crop[1]]) / 2
+        b = A.matmul(-b) + b
+        ida_rot = A.matmul(ida_rot)
+        ida_tran = A.matmul(ida_tran) + b
+        ida_mat = torch.eye(3)
+        ida_mat[:2, :2] = ida_rot
+        ida_mat[:2, 2] = ida_tran
+        return img, ida_mat
+
+    def _sample_augmentation(self):
+        H, W = self.data_aug_conf["H"], self.data_aug_conf["W"]
+        fH, fW = self.data_aug_conf["final_dim"]
+        if self.training:
+            resize = np.random.uniform(*self.data_aug_conf["resize_lim"])
+            resize_dims = (int(W * resize), int(H * resize))
+            newW, newH = resize_dims
+            crop_h = int((1 - np.random.uniform(*self.data_aug_conf["bot_pct_lim"])) * newH) - fH
+            crop_w = int(np.random.uniform(0, max(0, newW - fW)))
+            crop = (crop_w, crop_h, crop_w + fW, crop_h + fH)
+            flip = False
+            if self.data_aug_conf["rand_flip"] and np.random.choice([0, 1]):
+                flip = True
+            rotate = np.random.uniform(*self.data_aug_conf["rot_lim"])
+        else:
+            resize = max(fH / H, fW / W)
+            resize_dims = (int(W * resize), int(H * resize))
+            newW, newH = resize_dims
+            crop_h = int((1 - np.mean(self.data_aug_conf["bot_pct_lim"])) * newH) - fH
+            crop_w = int(max(0, newW - fW) / 2)
+            crop = (crop_w, crop_h, crop_w + fW, crop_h + fH)
+            flip = False
+            rotate = 0
+        return resize, resize_dims, crop, flip, rotate
+    
+    def _crop_augmentation(self, resize):
+        H, W = self.data_aug_conf["H"], self.data_aug_conf["W"]
+        fH, fW = self.data_aug_conf["final_dim"]
+        resize = 2.0 * resize
+        resize_dims = (int(W * resize), int(H * resize))
+        newW, newH = resize_dims
+        crop_h = int(max(0, newH - fH)/2)
+        crop_w = int(max(0, newW - fW)/2)
+        crop = (crop_w, crop_h, crop_w + fW, crop_h + fH)
+        flip = False
+        rotate = 0
+        return resize, resize_dims, crop, flip, rotate
 
 @PIPELINES.register_module()
 class GlobalRotScaleTransImage(object):
