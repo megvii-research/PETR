@@ -251,3 +251,26 @@ runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 load_from='ckpts/fcos3d_vovnet_imgbackbone-remapped.pth'
 resume_from=None
 
+# Results writes to /tmp/tmplupoqj5v/results/pts_bbox/results_nusc.json
+# Evaluating bboxes of pts_bbox
+# mAP: 0.4360
+# mATE: 0.7026
+# mASE: 0.2626
+# mAOE: 0.3882
+# mAVE: 0.3869
+# mAAE: 0.1840
+# NDS: 0.5256
+# Eval time: 234.0s
+
+# Per-class results:
+# Object Class    AP      ATE     ASE     AOE     AVE     AAE
+# car     0.615   0.489   0.144   0.068   0.328   0.183
+# truck   0.383   0.719   0.203   0.081   0.371   0.211
+# bus     0.478   0.745   0.190   0.087   0.710   0.233
+# trailer 0.252   1.023   0.231   0.515   0.291   0.135
+# construction_vehicle    0.137   1.056   0.471   1.185   0.149   0.345
+# pedestrian      0.520   0.639   0.289   0.466   0.399   0.178
+# motorcycle      0.436   0.646   0.241   0.412   0.602   0.175
+# bicycle 0.442   0.576   0.249   0.532   0.246   0.012
+# traffic_cone    0.577   0.523   0.321   nan     nan     nan
+# barrier 0.521   0.610   0.287   0.147   nan     nan

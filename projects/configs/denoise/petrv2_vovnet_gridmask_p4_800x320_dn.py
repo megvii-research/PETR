@@ -250,3 +250,26 @@ checkpoint_config = dict(interval=1, max_keep_ckpts=3)
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 load_from='ckpts/fcos3d_vovnet_imgbackbone-remapped.pth'
 resume_from=None
+
+# Evaluating bboxes of pts_bbox
+# mAP: 0.4191
+# mATE: 0.7005
+# mASE: 0.2632
+# mAOE: 0.4555
+# mAVE: 0.3814
+# mAAE: 0.1878
+# NDS: 0.5107
+# Eval time: 235.6s
+
+# Per-class results:
+# Object Class    AP      ATE     ASE     AOE     AVE     AAE
+# car     0.601   0.496   0.148   0.072   0.321   0.187
+# truck   0.388   0.724   0.200   0.106   0.321   0.206
+# bus     0.447   0.756   0.189   0.096   0.721   0.229
+# trailer 0.235   1.047   0.233   0.569   0.340   0.138
+# construction_vehicle    0.135   0.965   0.464   1.150   0.154   0.344
+# pedestrian      0.490   0.659   0.289   0.531   0.424   0.186
+# motorcycle      0.414   0.634   0.255   0.524   0.505   0.197
+# bicycle 0.405   0.578   0.257   0.908   0.264   0.015
+# traffic_cone    0.569   0.526   0.316   nan     nan     nan
+# barrier 0.507   0.619   0.281   0.144   nan     nan
