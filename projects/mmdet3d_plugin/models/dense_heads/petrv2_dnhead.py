@@ -595,7 +595,7 @@ class PETRv2DNHead(AnchorFreeHead):
             tmp[..., 4:5] = tmp[..., 4:5].sigmoid()
 
             if self.with_time:
-                tmp[..., 8:] = tmp[..., 8:] / mean_time_stamp
+                tmp[..., 8:] = tmp[..., 8:] / mean_time_stamp[:, None, None]
 
             outputs_coord = tmp
             outputs_classes.append(outputs_class)
