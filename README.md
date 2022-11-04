@@ -21,6 +21,10 @@ information of 3D coordinates into image features, producing the
 PETRv2 is a unified framework for 3D perception from multi-view images. Based on PETR, PETRv2 explores the effectiveness of temporal modeling, which utilizes the temporal information of previous frames to boost 3D object detection. The 3D PE achieves the temporal alignment on object position of different frames. A feature-guided position encoder is further introduced to improve the data adaptability of 3D PE. To support for high-quality BEV segmentation, PETRv2 provides a simply yet effective solution by adding a set of segmentation queries. Each segmentation query is responsible for segmenting one specific patch of BEV map. PETRv2 achieves state-of-the-art performance on 3D object detection and BEV segmentation. 
 
 ## News
+**2022.11.04** The code of multi-scale improvement in PETRv2 is released.   
+**2022.09.21** The code of query denoise improvement in PETRv2 is released.  
+**2022.09.04** PETRv2 with VoVNet backbone and multi-scale achieves **(59.1% NDS and 50.8% mAP)**.  
+**2022.08.11** PETRv2 with GLOM-like backbone and query denoise achieves **(59.2% NDS and 51.2% mAP)** without extra data.  
 **2022.07.04** PETR has been accepted by ECCV 2022.  
 **2022.06.28** The code of BEV Segmentation in PETRv2 is released.  
 **2022.06.16** The code of 3D object detection in PETRv2 is released.  
