@@ -1,3 +1,6 @@
+from pickle import FALSE
+
+
 _base_ = [
     '../../../mmdetection3d/configs/_base_/datasets/nus-3d.py',
     '../../../mmdetection3d/configs/_base_/default_runtime.py'
@@ -18,13 +21,13 @@ class_names = [
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ]
 input_modality = dict(
-    use_lidar=False,
+    use_lidar=True,
     use_camera=True,
     use_radar=False,
-    use_map=True,
-    use_external=True)
+    use_map=False,
+    use_external=False)
 model = dict(
-    type='Petr3D_seg',
+    type='Detr3Dlane_flatten200',
     use_grid_mask=True,
     img_backbone=dict(
         type='VoVNetCP',
@@ -39,11 +42,13 @@ model = dict(
         out_channels=256,
         num_outs=2),
     pts_bbox_head=dict(
-        type='PETRHeadseg',
+        type='PETRHeadlane_cvt200_h3_f3',
         num_classes=10,
         in_channels=256,
         num_query=900,
-        num_lane=256,
+        num_lane=625,
+        # blocks=[128,128,64],
+        blocks=[256,256,128],
         LID=True,
         with_position=True,
         with_multiview=True,
@@ -117,8 +122,26 @@ model = dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
-            alpha=0.25,
+            alpha=0.5,
             loss_weight=2.0),
+        loss_dri=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.5,
+            loss_weight=2.0),
+        loss_lan=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.5,
+            loss_weight=4.0),
+        loss_veh=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.5,
+            loss_weight=8.0),
         loss_bbox=dict(type='L1Loss', loss_weight=0.25),
         loss_iou=dict(type='GIoULoss', loss_weight=0.0),
         loss_lane_mask=dict(type='Sigmoid_ce_loss', loss_weight=1.0)
@@ -137,7 +160,7 @@ model = dict(
             iou_cost=dict(type='IoUCost', weight=0.0), # Fake cost. This is just to make it compatible with DETR head. 
             pc_range=point_cloud_range))))
 
-dataset_type = 'MultiCustomNuScenesDataset'
+dataset_type = 'MultiCustomNuScenesDatasetLane'
 data_root = '/data/Dataset/nuScenes/'
 
 file_client_args = dict(backend='disk')
@@ -177,9 +200,19 @@ db_sampler = dict(
         load_dim=5,
         use_dim=[0, 1, 2, 3, 4],
         file_client_args=file_client_args))
+# ida_aug_conf = {
+#         "resize_lim": (0.47, 0.625),
+#         "final_dim": (320, 800),
+#         "bot_pct_lim": (0.0, 0.0),
+#         "rot_lim": (0.0, 0.0),
+#         "H": 900,
+#         "W": 1600,
+#         # "rand_flip": False,
+#         "rand_flip": True,
+#     }
 ida_aug_conf = {
-        "resize_lim": (0.47, 0.625),
-        "final_dim": (320, 800),
+        "resize_lim": (0.94, 1.25),
+        "final_dim": (640, 1600),
         "bot_pct_lim": (0.0, 0.0),
         "rot_lim": (0.0, 0.0),
         "H": 900,
@@ -189,34 +222,34 @@ ida_aug_conf = {
     }
 train_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
-    dict(type='LoadMapsFromFiles'),
+    dict(type='LoadMapsFromFiles_flattenf200f3'),
     dict(type='LoadMultiViewImageFromMultiSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, test_mode=False, sweep_range=[3,27]),
     # dict(type='LoadMultiViewImageFromSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, is_nori_read=True),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
-    dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=True),
+    # dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=True),
     # dict(type='ResizeMultiview3D', img_scale=[(1800, 640), (1800, 900)], multiscale_mode='range', keep_ratio=True),
-    dict(type='GlobalRotScaleTransImage',
-            rot_range=[-0.3925, 0.3925],
-            translation_std=[0, 0, 0],
-            scale_ratio_range=[0.95, 1.05],
-            reverse_angle=True,
-            training=True
-            ),
+    # dict(type='GlobalRotScaleTransImage',
+    #         rot_range=[-0.3925, 0.3925],
+    #         translation_std=[0, 0, 0],
+    #         scale_ratio_range=[0.95, 1.05],
+    #         reverse_angle=True,
+    #         training=True
+    #         ),
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='PadMultiViewImage', size_divisor=32),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     dict(type='Collect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img','maps'],
-            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics',
+            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics','bda',
                 'pad_shape', 'scale_factor', 'flip', 'box_mode_3d', 'box_type_3d',
                 'img_norm_cfg', 'sample_idx', 'timestamp'))
 ]
 test_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
-    dict(type='LoadMapsFromFiles'),
-    dict(type='LoadMultiViewImageFromMultiSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, sweep_range=[3,27]),
-    dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=False),
+    dict(type='LoadMapsFromFiles_flattenf200f3'),
+    dict(type='LoadMultiViewImageFromMultiSweepsFiles', sweeps_num=1, to_float32=True, pad_empty_sweeps=True, test_mode=False, sweep_range=[3,27]),
+    # dict(type='ResizeCropFlipImage', data_aug_conf = ida_aug_conf, training=False),
     # dict(type='ResizeMultiview3D', img_scale= (1600, 800), keep_ratio=True),
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='PadMultiViewImage', size_divisor=32),
@@ -231,7 +264,7 @@ test_pipeline = [
                 class_names=class_names,
                 with_label=False),
             dict(type='Collect3D', keys=['img','gt_map','maps'],
-            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics',
+            meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img', 'intrinsics', 'extrinsics','bda',
                 'pad_shape', 'scale_factor', 'flip', 'box_mode_3d', 'box_type_3d',
                 'img_norm_cfg', 'sample_idx', 'timestamp'))
         ])
@@ -244,8 +277,8 @@ data = dict(
         type=dataset_type,
         data_root=data_root,
         
-        ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_train.pkl',
-        lane_ann_file=data_root + 'HDmaps-nocover_infos_train.pkl',
+        ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_train.pkl',
+        lane_ann_file=data_root + 'HDmaps-final_infos_train.pkl',
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -254,8 +287,8 @@ data = dict(
         # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
         # and box_type_3d='Depth' in sunrgbd and scannet dataset.
         box_type_3d='LiDAR'),
-    val=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-nocover_infos_val.pkl', classes=class_names, modality=input_modality),
-    test=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-nocover_infos_val.pkl', classes=class_names, modality=input_modality))
+    val=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality),
+    test=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality))
 
 
 optimizer = dict(
@@ -276,11 +309,12 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     min_lr_ratio=1e-3,
+    # by_epoch=False
     )
-total_epochs = 24
-evaluation = dict(interval=24, pipeline=test_pipeline)
+total_epochs = 50
+evaluation = dict(interval=50, pipeline=test_pipeline)
 find_unused_parameters=False
-checkpoint_config = dict(interval=1, max_keep_ckpts=3)
+checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 load_from='ckpts/fcos3d_vovnet_imgbackbone-remapped.pth'
 resume_from=None
