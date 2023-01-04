@@ -51,7 +51,7 @@ Then build Segmentation dataset:
   python build-dataset.py
   ```
   
-  If you want to train the segmentation task immediately, we privided the processed data ( HDmaps.tar ) at [gdrive](https://drive.google.com/file/d/1hr1NN3n6FWLLG5mjngk_yjMXpyv44oEo/view?usp=sharing) and [Baidu Netdisk](https://pan.baidu.com/s/1kF4i7os_4LEHbCVsn4WWww). The processed info files of segmentation can also be find at [gdrive](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing) and [Baidu Netdisk](https://pan.baidu.com/s/19Tr08kXoxmaElasiF_QShg). The code of Baidu Netdisk is `petr`.
+  If you want to train the segmentation task immediately, we privided the processed data ( HDmaps-final.tar ) at [gdrive](https://drive.google.com/file/d/1uw-ciYbqEHRTR9JoGH8VXEiQGAQr7Kik/view?usp=sharing). The processed info files of segmentation can also be find at [gdrive](https://drive.google.com/drive/folders/1_C2yuh51ROF3UzId4L1itwGQVUeVUxU6?usp=sharing).
 
 
 * Pretrained weights   
@@ -117,7 +117,7 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 
 | config            | Drive      | Lane   |  Vehicle     |backbone   |   config |download  |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|
-| PETRv2_BEVseg   | 85.6%     | 49.0%   | 46.3%     | V2-99  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log](https://drive.google.com/file/d/1PkAWcCag6ElsvF3PNoRNrEdeo39epVso/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1MP5a3C4Bj43uG_ao3P1RNF-xIvHkBUY7/view?usp=sharing)   
+| PETRv2_BEVseg   | 85.6%     | 49.0%   | 46.3%     | V2-99  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log](https://drive.google.com/drive/folders/1PdSsni_EePHlkCB-FJTIkhr979hwd8X6?usp=sharing) / [gdrive](https://drive.google.com/drive/folders/1PdSsni_EePHlkCB-FJTIkhr979hwd8X6?usp=sharing) 
 
 
 
