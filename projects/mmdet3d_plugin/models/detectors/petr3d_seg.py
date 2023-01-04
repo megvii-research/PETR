@@ -7,12 +7,12 @@
 # Modified from mmdetection3d (https://github.com/open-mmlab/mmdetection3d)
 # Copyright (c) OpenMMLab. All rights reserved.
 # ------------------------------------------------------------------------
+
 import torch
 import mmcv
 import numpy as np
 from mmcv.parallel import DataContainer as DC
 from os import path as osp
-import copy
 from mmcv.runner import force_fp32, auto_fp16
 from mmdet.models import DETECTORS
 from mmdet3d.core import bbox3d2result
@@ -21,12 +21,16 @@ from mmdet3d.core import (CameraInstance3DBoxes,LiDARInstance3DBoxes, bbox3d2res
 from mmdet3d.models.detectors.mvx_two_stage import MVXTwoStageDetector
 from projects.mmdet3d_plugin.models.utils.grid_mask import GridMask
 import cv2
+import copy
+# from .dct import ProcessorDCT
 from einops import rearrange
-def IOU (intputs,targets):
-    numerator = 2 * (intputs * targets).sum(dim=1)
-    denominator = intputs.sum(dim=1) + targets.sum(dim=1)
-    loss = (numerator + 0.01) / (denominator + 0.01)
-    return loss
+def IOU (intputs, targets, eps=1e-6):
+    intputs = intputs.bool()
+    targets = targets.bool()
+    inter = (intputs & targets).sum(-1)
+    union = (intputs | targets).sum(-1)
+    # iou = (numerator + eps) / (denominator + eps - numerator)
+    return inter.cpu(),union.cpu()
 
 @DETECTORS.register_module()
 class Petr3D_seg(MVXTwoStageDetector):
@@ -216,59 +220,54 @@ class Petr3D_seg(MVXTwoStageDetector):
     def simple_test_pts(self, x, img_metas, gt_map,maps,rescale=False):
         """Test function of point cloud branch."""
         outs = self.pts_bbox_head(x, img_metas)
-        bbox_list = self.pts_bbox_head.get_bboxes(
-            outs, img_metas, rescale=rescale)
-        bbox_results = [
-            bbox3d2result(bboxes, scores, labels)
-            for bboxes, scores, labels in bbox_list
-        ]
-
+        
         with torch.no_grad():
             
             lane_preds=outs['all_lane_preds'][5].squeeze(0)    #[B,N,H,W]
-            # lane_pred_obj=outs['all_lane_cls'][5].squeeze(0)     #[B,N,2]
-            n,w=lane_preds.size()
-            # lane_preds=maps[0][0]
             
-            pred_maps=lane_preds.view(256,3,16,16)
-
-
-            f_lane=rearrange(pred_maps, '(h w) c h1 w2 -> c (h h1) (w w2)', h=16, w=16)
-            f_lane=f_lane.sigmoid()
-            f_lane[f_lane>=0.5]=1
-            f_lane[f_lane<0.5]=0
-            f_lane_show=copy.deepcopy(f_lane)
+            n,w=lane_preds.size()
+            
+            f_lane=lane_preds.sigmoid()
+            f_lane[f_lane>=0.43]=1
+            f_lane[f_lane<0.43]=0
+            f_lane_show=copy.deepcopy(f_lane).reshape(3,200,200)
             gt_map_show=copy.deepcopy(gt_map[0])
             
             f_lane=f_lane.view(3,-1)
             gt_map=gt_map[0].view(3,-1) 
             
-            ret_iou=IOU(f_lane,gt_map).cpu()
+                     
+            inter,union=IOU(f_lane,gt_map)
+            ret_iou=inter/union
+            ret_iou=[ret_iou[0].item(),ret_iou[1].item(),ret_iou[2].item()]
+            ret_ious=[inter,union]
+
+
             show_res=False
             if show_res:
-            # select good quality results
-            # if ret_iou[0]>0.79 and ret_iou[1]>0.45 and ret_iou[2]>0.51:
-
-                pres=f_lane_show
-                pre=torch.zeros(256,256,3)
-                pre+=255
-                label=[[71,130,255],[255,255,0],[255,144,30]]
-                # label=[[255,0,0],[0,255,0],[0,0,255]]
-                pre[...,0][pres[0]==1]=label[0][0]
-                pre[...,1][pres[0]==1]=label[0][1]
-                pre[...,2][pres[0]==1]=label[0][2]
-                pre[...,0][pres[2]==1]=label[2][0]
-                pre[...,1][pres[2]==1]=label[2][1]
-                pre[...,2][pres[2]==1]=label[2][2]
-                pre[...,0][pres[1]==1]=label[1][0]
-                pre[...,1][pres[1]==1]=label[1][1]
-                pre[...,2][pres[1]==1]=label[1][2]
-                cv2.imwrite('./res-pre/'+str(ret_iou[0])+'_'+str(ret_iou[1])+'_'+str(ret_iou[2])+'_'+img_metas[0]['sample_idx']+'.png',pre.cpu().numpy())
+            
                 pres=gt_map_show[0]
-                pre=torch.zeros(256,256,3)
+                
+                gt=torch.zeros(200,200,3)
+                gt+=255
+                label=[[71,130,255],[255,255,0],[255,144,30]]
+                
+                gt[...,0][pres[0]==1]=label[0][0]
+                gt[...,1][pres[0]==1]=label[0][1]
+                gt[...,2][pres[0]==1]=label[0][2]
+                gt[...,0][pres[2]==1]=label[2][0]
+                gt[...,1][pres[2]==1]=label[2][1]
+                gt[...,2][pres[2]==1]=label[2][2]
+                gt[...,0][pres[1]==1]=label[1][0]
+                gt[...,1][pres[1]==1]=label[1][1]
+                gt[...,2][pres[1]==1]=label[1][2]
+                gt=gt.cpu().numpy()
+                
+                pres=f_lane_show
+                pre=torch.zeros(200,200,3)
                 pre+=255
                 label=[[71,130,255],[255,255,0],[255,144,30]]
-                # label=[[255,0,0],[0,255,0],[0,0,255]]
+                
                 pre[...,0][pres[0]==1]=label[0][0]
                 pre[...,1][pres[0]==1]=label[0][1]
                 pre[...,2][pres[0]==1]=label[0][2]
@@ -278,9 +277,13 @@ class Petr3D_seg(MVXTwoStageDetector):
                 pre[...,0][pres[1]==1]=label[1][0]
                 pre[...,1][pres[1]==1]=label[1][1]
                 pre[...,2][pres[1]==1]=label[1][2]
-                cv2.imwrite('./res-gt/'+str(ret_iou[0])+'_'+str(ret_iou[1])+'_'+str(ret_iou[2])+'_'+img_metas[0]['sample_idx']+'.png',pre.cpu().numpy())
-               
-        return bbox_results, ret_iou
+                pre=pre.cpu().numpy()
+                imgss=np.concatenate((pre, gt),axis=1)
+                
+                cv2.imwrite('./res/'+img_metas[0]['filename'][0].split('/')[-1].split('.')[0]+'.png',imgss)
+                
+            
+        return ret_ious
 
 
     
@@ -289,10 +292,9 @@ class Petr3D_seg(MVXTwoStageDetector):
         img_feats = self.extract_feat(img=img, img_metas=img_metas)
 
         bbox_list = [dict() for i in range(len(img_metas))]
-        bbox_pts,ret_iou = self.simple_test_pts(
+        ret_iou = self.simple_test_pts(
             img_feats, img_metas, gt_map,maps,rescale=rescale)
-        for result_dict, pts_bbox in zip(bbox_list, bbox_pts):
-            result_dict['pts_bbox'] = pts_bbox
+        for result_dict in bbox_list:
             result_dict['ret_iou']=ret_iou
         return bbox_list
 

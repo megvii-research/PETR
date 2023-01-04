@@ -5,7 +5,7 @@ import mmcv
 import numpy as np
 from mmdet.datasets.builder import PIPELINES
 from einops import rearrange
-
+import torch
 @PIPELINES.register_module()
 class LoadMapsFromFiles(object):
     def __init__(self,k=None):
@@ -162,5 +162,5 @@ class LoadMapsFromFiles_flattenf200f3(object):
         maps=1-maps
         results['map_shape']=maps.shape
         results['maps']=maps
-        results['bda']=torch.tensor([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]).float()
+        
         return results

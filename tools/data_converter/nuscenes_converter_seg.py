@@ -662,7 +662,7 @@ def generate_record(ann_rec: dict, x1: float, y1: float, x2: float, y2: float,
 
 
 def get_binimg( nusc, rec):
-        dx, bx, nx = gen_dx_bx([-51.2, 51.2, 0.4], [-51.2, 51.2, 0.4], [-5, 3, 8])
+        dx, bx, nx = gen_dx_bx([-50.0, 50.0, 0.5], [-50.0, 50.0, 0.5], [-5, 3, 8])
         dx, bx, nx = dx.numpy(), bx.numpy(), nx.numpy()
         egopose = nusc.get('ego_pose',
                                 nusc.get('sample_data', rec['data']['LIDAR_TOP'])['ego_pose_token'])
@@ -690,7 +690,7 @@ def get_binimg( nusc, rec):
 
 
 def obtain_map_info(nusc, nusc_maps, sample, l2e_r_mat, l2e_t, e2g_r_mat, e2g_t, lidar_path,info_prefix,
-                    patch_size=(102.4, 102.4), canvas_size=(256, 256),
+                    patch_size=(100, 100), canvas_size=(200, 200),
                     # layer_names=['lane_divider', 'road_divider'],
                     layer_names=['lane_divider', 'road_divider'],
                     thickness=10):
@@ -708,65 +708,28 @@ def obtain_map_info(nusc, nusc_maps, sample, l2e_r_mat, l2e_t, e2g_r_mat, e2g_t,
     patch_box = (l2g_t[0], l2g_t[1], patch_size[0], patch_size[1])
     patch_angle = math.degrees(Quaternion(matrix=l2g_r_mat).yaw_pitch_roll[0])
 
-    # Get semantic map masks
-    # kernel = np.ones((thickness, thickness), dtype=np.uint8)
-    # seg_mask = cv2.dilate(tmp_mask, kernel, 1)
-    # map_mask = np.concatenate([map_mask[:-2], seg_mask[None], tmp_mask[None]], axis=0)
+    
     bin_img = get_binimg (nusc,sample)
     bin_img=np.rot90(bin_img,3)
     
     map_mask = nusc_map.get_map_mask(patch_box, patch_angle, layer_names, canvas_size=canvas_size)
     map_mask = map_mask[-2] | map_mask[-1]
     
-    # map_mask = cv2.connectedComponentsWithStats(map_mask)[1]
-    # map_mask = np.concatenate([map_mask[:-2], tmp_mask[None]], axis=0)
+    
     map_mask=map_mask[np.newaxis,:]
     map_mask = map_mask.transpose((2, 1, 0)).squeeze(2)             # (H, W, C)
     map_mask=np.rot90(map_mask,2)
-    # map_mask=map_mask[:,:,0]
-    # map_mask = map_mask[::-1]                                     # (H, W, C)
-    # map_mask = map_mask[:map_mask.shape[0] // 2]
-    # cv2.imwrite('map1.jpg',map_mask*255)
-
-    # kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))  # 定义矩形核
-    # map_mask=map_mask.astype(np.uint8)
-    # map_mask = cv2.dilate(map_mask, kernel, iterations=1)  # 膨胀操作   
-    # map_mask=map_mask.astype(np.int32)
-
-    # cv2.imwrite('map2.jpg',map_mask*255) 
-    # map_mask=map_mask.astype(np.uint8)
-    # map_mask=cv2.resize(map_mask,(128,128))
-    # map_mask=map_mask.astype(np.int32)
-    # cv2.imwrite('map5.jpg',map_mask*255)
-    # map_mask=map_mask.astype(np.uint8)
-    # map_mask=cv2.resize(map_mask,(1024,1024))
-    # map_mask=map_mask.astype(np.int32)
-    # cv2.imwrite('map6.jpg',map_mask*255)
-    # map_mask = extract_boundary(map_mask, thickness=thickness, worker_id=0)
+    
     
     erode=nusc_map.get_map_mask(patch_box, patch_angle, ['drivable_area'], canvas_size=canvas_size)
-    # erode=erode.repeat(3,axis=0)
+    
     erode = erode.transpose((2, 1, 0)).squeeze(2)
     erode=np.rot90(erode,2)
 
-    map_mask=map_mask*(1-bin_img)
-    erode=erode*(1-map_mask)*(1-bin_img)
-
-    # erode=erode.astype(np.uint8)
-    # mask=cv2.Canny(erode*255,32,128)
-    # mask = cv2.connectedComponentsWithStats(mask)[1]
-
-    # mask=mask.astype(np.uint8)
-    # mask=mask[:,:,np.newaxis]
-    # mask=cv2.dilate(mask, kernel, iterations=1)
-    # img_contour, contours, hierarchy = cv2.findContours(map_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    # mask = cv2.drawContours(mask, contours[0], 0, (255, 255, 255), -1)
-    # cv2.imwrite('map3.jpg',mask*255)
     
-    # mask=mask.astype(np.int32)
     
     map_mask=np.concatenate([erode[None],map_mask[None],bin_img[None]], axis=0)
-    # map_mask=np.rot90(map_mask,2)
+    
     map_mask = map_mask.transpose((1, 2, 0))
     
     map_info = dict()
