@@ -160,7 +160,7 @@ model = dict(
             iou_cost=dict(type='IoUCost', weight=0.0), # Fake cost. This is just to make it compatible with DETR head. 
             pc_range=point_cloud_range))))
 
-dataset_type = 'MultiCustomNuScenesDatasetLane'
+dataset_type = 'MultiCustomNuScenesDataset'
 data_root = '/data/Dataset/nuScenes/'
 
 file_client_args = dict(backend='disk')
