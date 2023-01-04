@@ -143,3 +143,24 @@ class LoadMultiViewImageFromMultiSweepsFiles(object):
         repr_str += f'(to_float32={self.to_float32}, '
         repr_str += f"color_type='{self.color_type}')"
         return repr_str
+
+@PIPELINES.register_module()
+class LoadMapsFromFiles_flattenf200f3(object):
+    def __init__(self,k=None):
+        self.k=k
+    def __call__(self,results):
+        map_filename=results['map_filename']
+        maps=np.load(map_filename)
+        map_mask=maps['arr_0'].astype(np.float32)
+        
+        maps=map_mask.transpose((2,0,1))
+        results['gt_map']=maps
+        # maps=rearrange(maps, 'c (h h1) (w w2) -> (h w) c h1 w2 ', h1=16, w2=16)
+        maps=maps.reshape(3,200*200)
+        maps[maps>=0.5]=1
+        maps[maps<0.5]=0
+        maps=1-maps
+        results['map_shape']=maps.shape
+        results['maps']=maps
+        results['bda']=torch.tensor([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]).float()
+        return results
