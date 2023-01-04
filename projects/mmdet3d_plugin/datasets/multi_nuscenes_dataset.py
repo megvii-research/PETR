@@ -333,36 +333,30 @@ class MultiCustomNuScenesDataset(NuScenesDataset):
         Returns:
             dict[str, float]: Results of each evaluation metric.
         """
-        result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
+        # result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
+        inter=[0,0,0]
+        union=[0,0,0]
         res=[0,0,0]
         # ret_f1=[0,0,0,0,0]
         for i in range(len(results)):
             for tt in range(3):
-                res[tt]+=results[i]['ret_iou'][tt]
+                inter[tt]+=results[i]['ret_iou'][0][tt]
+                union[tt]+=results[i]['ret_iou'][1][tt]
                 # ret_f1[tt]+=results[i]['ret_F1'][k[tt]][2]
         n=len(results)
+        # print(inter)
+        # print(union)
+        # print(n)
         for i in range(len(res)):
-            res[i]=res[i]/n
+            res[i]=(inter[i]/union[i]).item()
         # ret_f1=ret_f1/n
-
-
+        print(inter)
+        print(union)
+        print(n)
+        print(res)
+        results_dict=dict(result=np.array(res))
         
-        # print(ret_f1)
-
-        if isinstance(result_files, dict):
-            results_dict = dict()
-            for name in result_names:
-                print('Evaluating bboxes of {}'.format(name))
-                ret_dict = self._evaluate_single(result_files[name],res)
-            results_dict.update(ret_dict)
-        elif isinstance(result_files, str):
-            results_dict = self._evaluate_single(result_files)
-
-        if tmp_dir is not None:
-            tmp_dir.cleanup()
-
-        if show:
-            self.show(results, out_dir, pipeline=pipeline)
+        
         return results_dict
 
 def output_to_nusc_box(detection):
