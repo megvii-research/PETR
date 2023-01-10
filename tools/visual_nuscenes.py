@@ -948,7 +948,7 @@ class NuScenesExplorer:
             assert pointsensor['sensor_modality'] == 'lidar', 'Error: Can only render intensity for lidar, ' \
                                                               'not %s!' % pointsensor['sensor_modality']
             # Retrieve the color from the intensities.
-            # Performs arbitary scaling to achieve more visually pleasing results.
+            # Performs arbitrary scaling to achieve more visually pleasing results.
             intensities = pc.points[3, :]
             intensities = (intensities - np.min(intensities)) / (np.max(intensities) - np.min(intensities))
             intensities = intensities ** 0.1
