@@ -1,6 +1,7 @@
 # Position Embedding Transformation for Multi-View 3D Object Detection
 [![arXiv](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2203.05625)
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=megvii-research/PETR)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/petrv2-a-unified-framework-for-3d-perception/3d-object-detection-on-nuscenes-camera-only)](https://paperswithcode.com/sota/3d-object-detection-on-nuscenes-camera-only?p=petrv2-a-unified-framework-for-3d-perception)
 <!-- ## Introduction -->
 
 This repository is an official implementation of [PETR](https://arxiv.org/abs/2203.05625) and [PETRv2](https://arxiv.org/abs/2206.01256) 
@@ -120,6 +121,9 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 |:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|
 | PETRv2_BEVseg   | 85.6%     | 49.0%   | 46.3%     | V2-99  | [config](projects/configs/petrv2/PETRv2_BEVseg.py)  | [log](https://drive.google.com/drive/folders/1PdSsni_EePHlkCB-FJTIkhr979hwd8X6?usp=sharing) / [gdrive](https://drive.google.com/drive/folders/1PdSsni_EePHlkCB-FJTIkhr979hwd8X6?usp=sharing) 
 
+| config            | F-score      | X-near   |  X-far     |  Z-near   |  Z-far   |backbone   |   config |download  |
+|:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|:-------------:|:-------------:|
+| PETRv2_3DLane  | 61.2%     | 0.400   | 0.573     |0.265     |0.413    | V2-99  |  | |
 
 
 
