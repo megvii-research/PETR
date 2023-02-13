@@ -22,7 +22,8 @@ information of 3D coordinates into image features, producing the
 PETRv2 is a unified framework for 3D perception from multi-view images. Based on PETR, PETRv2 explores the effectiveness of temporal modeling, which utilizes the temporal information of previous frames to boost 3D object detection. The 3D PE achieves the temporal alignment on object position of different frames. A feature-guided position encoder is further introduced to improve the data adaptability of 3D PE. To support for high-quality BEV segmentation, PETRv2 provides a simply yet effective solution by adding a set of segmentation queries. Each segmentation query is responsible for segmenting one specific patch of BEV map. PETRv2 achieves state-of-the-art performance on 3D object detection and BEV segmentation. 
 
 ## News
-**2022.01.04** Our multi-modal detection framework [CMT](https://github.com/junjie18/CMT) is released on [arxiv](https://arxiv.org/pdf/2301.01283.pdf).    
+**2023.01.25** Our multi-view 3D detection framework **StreamPETR** achieves SOTA performance **(53.1% NDS and 55.0% mAP)** without TTA and future frames.    
+**2023.01.04** Our multi-modal detection framework [CMT](https://github.com/junjie18/CMT) is released on [arxiv](https://arxiv.org/pdf/2301.01283.pdf).    
 **2022.11.04** The code of multi-scale improvement in PETRv2 is released.   
 **2022.09.21** The code of query denoise improvement in PETRv2 is released.  
 **2022.09.04** PETRv2 with VoVNet backbone and multi-scale achieves **(59.1% NDS and 50.8% mAP)**.  
@@ -125,7 +126,10 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 |:--------:|:----------:|:---------:|:--------:|:--------:|:--------:|:-------------:|:-------------:|:-------------:|
 | PETRv2_3DLane  | 61.2%     | 0.400   | 0.573     |0.265     |0.413    | V2-99  |  | |
 
-
+StreamPETR: Stream-PETR achieves significant performance improvements without introducing extra computation cost, compared to the single-frame baseline.
+| config            | mAP      | NDS     |FPS-Pytorch    |   config |   download |
+|:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
+| StreamPETR-r50-704x256   | 44.5%     | 54.4%    | 30.5/s  | |  
 
 ## Acknowledgement
 Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d) .
