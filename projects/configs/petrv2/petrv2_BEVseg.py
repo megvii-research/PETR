@@ -277,7 +277,7 @@ data = dict(
         type=dataset_type,
         data_root=data_root,
         
-        ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_train.pkl',
+        ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_train.pkl',
         lane_ann_file=data_root + 'HDmaps-final_infos_train.pkl',
         pipeline=train_pipeline,
         classes=class_names,
@@ -287,8 +287,8 @@ data = dict(
         # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
         # and box_type_3d='Depth' in sunrgbd and scannet dataset.
         box_type_3d='LiDAR'),
-    val=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality),
-    test=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_2f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality))
+    val=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality),
+    test=dict(type=dataset_type, pipeline=test_pipeline, ann_file=data_root + 'mmdet3d_nuscenes_30f_infos_val.pkl',lane_ann_file=data_root + 'HDmaps-final_infos_val.pkl', classes=class_names, modality=input_modality))
 
 
 optimizer = dict(
