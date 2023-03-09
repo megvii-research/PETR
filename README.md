@@ -41,10 +41,20 @@ PETRv2 is a unified framework for 3D perception from multi-view images. Based on
 This implementation is built upon [detr3d](https://github.com/WangYueFt/detr3d/blob/main/README.md), and can be constructed as the [install.md](./install.md).
 
 * Environments  
-  Linux, Python==3.6.8, CUDA == 11.2, pytorch == 1.9.0, mmdet3d == 0.17.1   
+  Linux, Python==3.6.8, CUDA == 11.2, pytorch == 1.9.0, mmdet3d == 0.17.1, Flash-Attention
 
-  Flash-Attention
-  
+  For python3.7
+  ```
+  sudo pip install flash-attn
+  ```
+  For python3.6
+  ```
+  git clone --recursive https://github.com/HazyResearch/flash-attention.git 
+  cd flash-attention
+  sudo python3 setup.py develop
+  ```
+  Note that falsh attention can run on 2080ti, 3090, A100 GPUs, don't run on V100. When use falsh attention, the multi-view 2d PE should close. 
+
 
 * Detection Data   
 Follow the mmdet3d to process the nuScenes dataset (https://github.com/open-mmlab/mmdetection3d/blob/master/docs/en/data_preparation.md).
@@ -119,8 +129,8 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 | config            | mAP      | NDS     |training    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
 | PETRv2-vov-p4-800x320-24epoch  | 41.0%     | 50.3%    | 30hours  | [config](projects/configs/petrv2/petrv2_vovnet_gridmask_p4_800x320.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / [gdrive](https://drive.google.com/file/d/1tv_D8Ahp9tz5n4pFp4a64k-IrUZPu5Im/view?usp=sharing)    
-| PETRv2-r50-p4-704x256-flash-60epoch   | 39.3%     | 49.5%    | 60hours  | [config](projects/configs/flashattention/petrv2_r50_gridmask_p4_704x256_dn_flash_nuim.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / 
-| PETRv2-r50-p4-1600x640-flash-60epoch   | 44.2%     | 52.9%    | 122hours  | [config](projects/configs/flashattention/petrv2_r50_gridmask_p4_1600x640_dn_flash_nuim.py)  | [log](https://drive.google.com/file/d/1QcVSDHoUAcFLqziwZrBn5A2oAjH86WiO/view?usp=sharing) / 
+| PETRv2-r50-p4-704x256-flash-60epoch   | 39.3%     | 49.5%    | 60hours  | [config](projects/configs/flashattention/petrv2_r50_gridmask_p4_704x256_dn_flash_nuim.py)  | [log](https://drive.google.com/file/d/1sHdwGU5G3UoWilNS5Fkg13EM7dRpASkh/view?usp=sharing) / 
+| PETRv2-r50-p4-1600x640-flash-60epoch   | 44.2%     | 52.9%    | 122hours  | [config](projects/configs/flashattention/petrv2_r50_gridmask_p4_1600x640_dn_flash_nuim.py)  | [log](https://drive.google.com/file/d/13xCP66z1iy7_ZM6nD7UonA70IKcDXalV/view?usp=sharing) / 
 
 
 | config            | Drive      | Lane   |  Vehicle     |backbone   |   config |download  |
