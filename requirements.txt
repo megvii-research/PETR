@@ -1,0 +1,15 @@
+lyft_dataset_sdk
+networkx>=2.2,<2.3
+# we may unlock the verion of numba in the future
+numba==0.48.0
+numpy<1.20.0
+nuscenes-devkit
+plyfile
+scikit-image
+# by default we also use tensorboard to log results
+tensorboard
+trimesh>=2.35.39,<2.35.40
+numba==0.48.0
+mmcv-full==1.4.0
+mmdet==2.24.1
+mmsegmentation==0.20.2
