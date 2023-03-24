@@ -4,7 +4,7 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/petrv2-a-unified-framework-for-3d-perception/3d-object-detection-on-nuscenes-camera-only)](https://paperswithcode.com/sota/3d-object-detection-on-nuscenes-camera-only?p=petrv2-a-unified-framework-for-3d-perception)
 <!-- ## Introduction -->
 
-This repository is an official implementation of [PETR](https://arxiv.org/abs/2203.05625) and [PETRv2](https://arxiv.org/abs/2206.01256) 
+This repository is an official implementation of [PETR](https://arxiv.org/abs/2203.05625) and [PETRv2](https://arxiv.org/abs/2206.01256). The flash attention version can be find from the "[flash](https://github.com/megvii-research/PETR/tree/flash)" branch.
 
 <div align="center">
   <img src="figs/overview.png"/>
@@ -22,7 +22,7 @@ information of 3D coordinates into image features, producing the
 PETRv2 is a unified framework for 3D perception from multi-view images. Based on PETR, PETRv2 explores the effectiveness of temporal modeling, which utilizes the temporal information of previous frames to boost 3D object detection. The 3D PE achieves the temporal alignment on object position of different frames. A feature-guided position encoder is further introduced to improve the data adaptability of 3D PE. To support for high-quality BEV segmentation, PETRv2 provides a simply yet effective solution by adding a set of segmentation queries. Each segmentation query is responsible for segmenting one specific patch of BEV map. PETRv2 achieves state-of-the-art performance on 3D object detection and BEV segmentation. 
 
 ## News
-**2023.01.25** Our multi-view 3D detection framework **StreamPETR** achieves SOTA performance **(63.1% NDS and 55.0% mAP)** without TTA and future frames.    
+**2023.01.25** Our multi-view 3D detection framework [StreamPETR](https://github.com/exiawsh/StreamPETR) (63.6% NDS and 55.0% mAP)** without TTA and future frames.   
 **2023.01.04** Our multi-modal detection framework [CMT](https://github.com/junjie18/CMT) is released on [arxiv](https://arxiv.org/pdf/2301.01283.pdf).    
 **2022.11.04** The code of multi-scale improvement in PETRv2 is released.   
 **2022.09.21** The code of query denoise improvement in PETRv2 is released.  
@@ -129,7 +129,7 @@ PETRv2: We provide a 3D object detection baseline and a BEV segmentation baselin
 StreamPETR: Stream-PETR achieves significant performance improvements without introducing extra computation cost, compared to the single-frame baseline.
 | config            | mAP      | NDS     |FPS-Pytorch    |   config |   download |
 |:--------:|:----------:|:---------:|:--------:|:--------:|:-------------:|
-| StreamPETR-r50-704x256   | 44.5%     | 54.4%    | 30.5/s  | |  
+| StreamPETR-r50-704x256   | 45.0%     | 55.0%    | 31.7/s  | |  
 
 ## Acknowledgement
 Many thanks to the authors of [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and [detr3d](https://github.com/WangYueFt/detr3d) .
